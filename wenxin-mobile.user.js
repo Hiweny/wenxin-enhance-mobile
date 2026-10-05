@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.2.0
+// @version      0.3.0
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏独立页。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        https://wenxin.baidu.com/*
@@ -15,7 +15,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.2.0';
+  var VERSION = '0.3.0';
   var MOBILE_MAX = 900;
   function isMobile() { return window.innerWidth <= MOBILE_MAX; }
   function q(sel, root) { return (root || document).querySelector(sel); }
@@ -61,8 +61,9 @@
     'body.wx-mobile.wx-drawer-open #wx-scrim{opacity:1;pointer-events:auto}',
 
     /* 顶栏 */
-    'body.wx-mobile [class*="_chat-top-bar-new"]{position:fixed!important;top:0;left:0;right:0;width:100%!important;height:52px!important;z-index:1200;display:flex!important;align-items:center!important;padding:0 8px!important;box-sizing:content-box;backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);background:rgba(255,255,255,.82)!important;border-bottom:1px solid rgba(0,0,0,.06)}',
-    'body.wx-mobile [class*="_chat-top-bar-new"] #chat-top-tab-list{margin-left:auto!important}',
+    'body.wx-mobile [class*="_chat-top-bar-new"]{position:fixed!important;top:0;left:0;right:0;width:100%!important;max-width:100%!important;height:52px!important;z-index:1200;display:flex!important;align-items:center!important;box-sizing:border-box!important;padding:0 8px!important;padding-left:calc(8px + env(safe-area-inset-left,0px))!important;padding-right:calc(8px + env(safe-area-inset-right,0px))!important;backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);background:rgba(255,255,255,.82)!important;border-bottom:1px solid rgba(0,0,0,.06)}',
+    'body.wx-mobile [class*="_chat-top-bar-new"] #chat-top-tab-list{margin-left:auto!important;font-size:13px!important;gap:6px!important;align-items:center!important;padding-right:4px!important}',
+    'body.wx-mobile [class*="_chat-top-bar-new"] #chat-top-tab-list > *{white-space:nowrap!important;flex:0 0 auto!important}',
     'body.wx-mobile [class*="_chat-container-main_"]{padding-top:52px!important;box-sizing:border-box!important}',
 
     /* 汉堡 */
@@ -88,7 +89,14 @@
     'body.wx-mobile #conversation-flow-content{font-size:16px!important;line-height:1.62!important}',
     'body.wx-mobile [class*="_question-block"]{font-size:16px!important;line-height:1.5!important}',
     'body.wx-mobile .cosd-markdown,body.wx-mobile .cosd-markdown-content,body.wx-mobile .marklang-paragraph{font-size:16px!important;line-height:1.62!important}',
-    'body.wx-mobile .cs-question-bubble.cs-bubble{max-width:86%!important}'
+    'body.wx-mobile .cs-question-bubble.cs-bubble{max-width:86%!important}',
+    /* 消息操作栏：允许换行，避免 7 个图标挤一行 */
+    'body.wx-mobile .cs-answer-hover-menu-container,body.wx-mobile .cs-hover-menu{flex-wrap:wrap!important;gap:4px 8px!important}',
+    /* 底部合规小字 */
+    'body.wx-mobile [class*="_home-footer-tip"]{font-size:12px!important}',
+    'body.wx-mobile .chat-input-box-pc .tip,body.wx-mobile .ci-container .tip{font-size:12px!important;padding:2px 0 2px!important}',
+    /* 消息区左右内边距 */
+    'body.wx-mobile .chat-qa-container{padding-left:14px!important;padding-right:14px!important;box-sizing:border-box!important}'
   ].join('\n');
 
   function injectCSS() {
