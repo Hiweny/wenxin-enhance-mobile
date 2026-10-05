@@ -1,19 +1,34 @@
-# 文心助手手机版增强 (Wenxin Enhance Mobile)
+# 文心助手 · 手机版适配（PC网页改造）
 
-百度文心助手**手机版网页**（`https://wenxin.baidu.com/`，手机 UA）的 Tampermonkey 增强脚本。
+把 **百度文心助手电脑版网页**（`https://wenxin.baidu.com/` / `https://chat.baidu.com/`，电脑端 UA）用油猴脚本**全量改造成移动端布局**。使用场景：手机上用电脑版 UA 打开文心助手（电脑版功能更全，但界面是桌面布局），脚本把它变成"原生手机 App 一样"的界面。
+
+> 注意：本项目改造的是**电脑版 UA 的页面**，目标是**手机端显示**。与仓库早期"手机版 UA 增强"是两回事。
 
 ## 功能
-- 默认选择 **DeepSeek-V4 Pro** 模型、默认开启**思考模式**、默认开启**任务模式**（在网络请求层强制，最可靠）
-- **防撤回**：缓存真实回答，被撤回/过滤后自动恢复（移植自 deepseek-enhance 思路，针对文心 SSE 适配）
-- **自定义全局背景**：背景图 + 模糊/亮度调节、本地上传（≤8MB）、磨砂透明气泡
-- **移除胶囊条中需要 App 的功能**，仅保留网页可用项（深度思考 / 模型 / 任务 / 深入研究）
-- 去掉图片相关入口；输入框与整体手机端美化（圆角、阴影、磨砂、安全区适配）
-- 右下角 ✦ 唤起底部滑出设置面板
+
+- **手机端 viewport / 布局**：强制 `width=device-width`，主容器铺满，消除横向溢出
+- **侧边栏 → 抽屉**：桌面左侧栏改为左侧滑出抽屉（汉堡按钮开关、遮罩点击关闭、宽 300px/84vw）
+- **默认工作模式**：进入首页自动切到「工作」模式
+- **底部输入框**：全宽、大圆角、安全区适配、字号加大、内部按钮统一（消除矩形色块）
+- **消息排版**：正文 16px / 行高 1.62，气泡最大宽 86%
+- **顶栏**：固定顶部、磨砂玻璃、左侧汉堡按钮
+- **任务模式**：任务步骤面板在手机端正常展示
+- （持续迭代中：任务侧栏独立页、各类弹窗适配、磨砂玻璃细节）
 
 ## 安装
-1. 安装 Tampermonkey（手机可用 Kiwi/Edge 扩展，或支持油猴的浏览器）
+
+1. 安装油猴扩展（手机可用 **Kiwi Browser / Edge / Firefox** 等支持扩展的浏览器）
 2. 打开 raw 脚本链接即可安装：
-   https://raw.githubusercontent.com/Hiweny/wenxin-enhance-mobile/main/wenxin-enhance-mobile.user.js
+   ```
+   https://raw.githubusercontent.com/Hiweny/wenxin-enhance-mobile/main/wenxin-mobile.user.js
+   ```
+3. 确保浏览器请求**电脑版网页**（关闭"桌面版网站"以外的手机重定向），即 UA 为电脑端。
 
 ## 文档
-- 网页结构研究：[docs/dom-research.md](docs/dom-research.md)
+
+- 电脑版网页结构研究：[docs/dom-research.md](docs/dom-research.md)
+
+## 开发
+
+- 脚本单文件：`wenxin-mobile.user.js`
+- 本地实测：用 Playwright 以「手机视口 + 电脑 UA + 注入脚本」的方式截图核对（见 `docs/dom-research.md` 的测试方法）
