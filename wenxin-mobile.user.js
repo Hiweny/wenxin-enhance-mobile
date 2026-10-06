@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.11.0
+// @version      0.13.0
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏全屏页、桌面版网站模式缩放补偿。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        *://wenxin.baidu.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.11.0';
+  var VERSION = '0.13.0';
   var MOBILE_MAX = 1200;
   var SCALE_TARGET = 360;      // 缩放补偿后的目标逻辑宽度
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
@@ -171,7 +171,8 @@
 
     /* 右侧任务栏 -> 移动端全屏页（可关闭） */
     'body.wx-mobile [class*="_right-bar-wrapper"]:not([class*="_hide"]){position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;max-width:100%!important;height:100%!important;z-index:1600!important;background:#fff!important;box-shadow:none!important;overflow:hidden!important}',
-    'body.wx-mobile.wx-rightbar-closed [class*="_right-bar-wrapper"]{visibility:hidden!important;pointer-events:none!important}',
+    /* 关闭时：只撤销我们的全屏覆盖，绝不设 display/visibility（否则站点布局计算拿到 0 尺寸会白屏） */
+    'body.wx-rightbar-closed [class*="_right-bar-wrapper"]{position:static!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:auto!important;max-width:none!important;height:auto!important;overflow:visible!important}',
     'body.wx-rightbar-closed #wx-rightbar-close{display:none!important}',
     'body.wx-mobile [class*="_right-bar-divider-hit-area"]{display:none!important}',
     'body.wx-mobile [class*="_right-bar-wrapper"] [class*="workspace-stage"],body.wx-mobile [class*="_right-bar-wrapper"] .chat-right-bar{width:100%!important;max-width:100%!important}',
@@ -273,11 +274,37 @@
       btn.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:1700;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;font-size:17px;color:#333;cursor:pointer;-webkit-tap-highlight-color:transparent';
       btn.addEventListener('click', function (e) {
         e.preventDefault(); e.stopPropagation();
-        // 关键：用站点自己的 _hide 类关闭，避免其布局计算拿到 0 尺寸而白屏
         var r = q('[class*="_right-bar-wrapper"]');
-        if (r && hideToken) { try { r.classList.add(hideToken); } catch (err) {} }
+        var clickedSite = false;
+        if (r) {
+          // 1) 优先触发站点自己的关闭/收起控件（这样才能让站点恢复对话区）
+          try {
+            var ctl = r.querySelector('[class*="collapse"],[class*="close"],[class*="back"],[class*="shrink"]');
+            if (ctl && ctl.getBoundingClientRect().width > 0) { ctl.click(); clickedSite = true; }
+          } catch (err) {}
+          // 2) 再复用站点自己的 _hide 类（不改变盒子尺寸）
+          if (!clickedSite && hideToken) { try { r.classList.add(hideToken); } catch (err) {} }
+        }
+        // 3) ESC 兜底（部分弹层响应 Esc）
+        try {
+          document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', keyCode: 27, bubbles: true }));
+        } catch (err) {}
+        // 4) 撤销我们的全屏覆盖（绝不设 display/visibility）
         document.body.classList.add('wx-rightbar-closed');
         btn.style.display = 'none';
+        // 5) 安全网：若关闭后对话区没有内容（站点未恢复），自动刷新一次回到干净状态
+        setTimeout(function () {
+          try {
+            var box = q('#conversation-flow-content');
+            var hasMsg = box && box.querySelector('.chat-qa-container');
+            var flagged = false;
+            try { flagged = sessionStorage.getItem('wx-rb-reloaded') === '1'; } catch (err2) {}
+            if (!hasMsg && !flagged) {
+              try { sessionStorage.setItem('wx-rb-reloaded', '1'); } catch (err3) {}
+              location.reload();
+            }
+          } catch (err4) {}
+        }, 700);
       });
       document.body.appendChild(btn);
     }
@@ -352,6 +379,7 @@
   function boot() {
     try { console.log('[WXMobile] v' + VERSION + ' mobile=' + isMobile() + ' realW=' + realW()); } catch (e) {}
     injectCSS();
+    try { sessionStorage.removeItem('wx-rb-reloaded'); } catch (e) {}
     sync();
     debugBadge();
     var mo = new MutationObserver(function (muts) {
