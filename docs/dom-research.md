@@ -197,3 +197,52 @@ page.goto("https://wenxin.baidu.com/")
 - `add_init_script` 模拟油猴的 `@run-at document-start` 注入。
 - ⚠️ **`document-start` 时 `document.head` 可能尚不存在**，`appendChild` 会抛 `Cannot read properties of null`，必须等 `documentElement && head` 就绪后再注入（脚本内已用轮询处理）。
 - 副作用：账号会新增历史会话（任务测试会产生）。
+
+---
+
+## 7. 右侧任务栏（文件/HTML 交付预览）
+
+### 触发方式（关键，之前一直没找到）
+
+任务栏**不是**菜单项，也**不会**在发「任务模式」指令时自动展开。它由**消息正文里的文件卡片**触发：
+
+在某条交付型对话里找到 `div._deliverable-card_*`（内容形如 `index.html | HTML 26.73KB | 查看`），
+点击卡片上的「查看」按钮 `button._download-btn_*`，右侧任务栏才展开（class 变为 `right-bar-wrapper-live ... _show`）。
+
+> 教训：仅靠「搜索任务 / 任务模式指令 / 点文件卡片的其它区域」都触发不了 `._right-bar-wrapper`，必须点那个「查看」按钮。
+
+### 结构
+
+```
+[class*="_right-bar-wrapper"].right-bar-wrapper-live._show     ← PC 上 780px 宽；手机改为整屏覆盖
+  ├── [class*="_right-bar-divider-hit-area"]                   ← 拖拽分隔条（手机隐藏）
+  ├── ._ease-in-show
+  │   └── .workspace-stage-inner._workspace-stage
+  │       ├── #work-stage._workspace
+  │       │   └── #__qiankun_microapp_wrapper_for_chat_code__   ← qiankun 微应用（【Shadow DOM】）
+  │       └── ._header-actions._tool-bar                        ← 下载/复制/上传/关闭（light DOM，位于面板右上角）
+  └── ._ease-in-show > .chat-right-bar                          ← “全网搜索” 面板（另一个 _ease-in-show）
+```
+
+### Shadow DOM 内部（预览 iframe 所在，前缀 `ccw-` 的 Tailwind 类）
+
+```
+#__qiankun_microapp_wrapper_for_chat_code__   ← :host
+  #shadowroot
+    #comate-chat-workspace
+      header.ccw-h-[56px]                       ← 「代码 / 预览」两个 80×32 标签
+      div.ccw-h-[calc(100%-56px)]
+        div.ccw-w-full.ccw-h-full
+          div#:r2:.h-full.ccw-relative
+            iframe#ccw-preview-iframe           ← 可见；src=https://run.comate.space/chat/serviceWorker/<id>（【跨域】）
+            iframe#ccw-preview-iframe2          ← 0×0
+```
+
+### 手机适配要点（脚本已实现）
+
+1. **Shadow DOM 隔离**：document 里的 `<style>` 进不去 shadow tree，必须 `host.shadowRoot.appendChild(style)`（`injectShadowCSS()`）。且 shadowRoot 的建立**不触发** document 的 MutationObserver → 用 600ms 轮询在开启期间补注入。
+2. **内层被按 PC 定死宽度**：`workspace-stage / #work-stage / 微应用 host` 实测 **580 逻辑px** → 横向溢出、右上工具栏按钮被推到屏外。修复 = 整条链路 `width/max-width:100% + min-width:0`。
+3. **跨域 iframe 改不了内容**：预览内容在 `run.comate.space`，无法注入；只要把 iframe 宽度做成面板满宽（≈手机逻辑宽 360），交付页就会按手机宽度自行重排。
+4. **顶部让位**：shadow 里 header 的「代码/预览」标签左对齐（`padding-right:150px` 给工具栏留位）；light DOM 工具栏贴右、触控区放大到 38px。
+5. **「代码」标签页**：文件树(min-w 156) + 编辑器(min-w 220) 会超 360 → 放开 `[class*="ccw-min-w-"]` 的 min-width，编辑器内部横向滚动。
+6. **关闭不白屏**：站点 X 会加 `_hide` 类 → 覆盖层规则用 `body.wx-rightbar-open [class*="_right-bar-wrapper"]:not([class*="_hide"])`，`_hide` 一出现覆盖层立即撤销；另用 600ms 轮询纠正 body 的 `wx-rightbar-open`（因为 class 变化不触发 childList 观察器）。**绝不设 `display:none`/`visibility:hidden`**。
