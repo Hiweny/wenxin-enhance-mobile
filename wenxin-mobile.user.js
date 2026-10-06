@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.4.0
+// @version      0.6.1
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏独立页。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        *://wenxin.baidu.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.4.0';
+  var VERSION = '0.6.1';
   var MOBILE_MAX = 1200;
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
   function isMobile() {
@@ -32,11 +32,21 @@
 
   window.__WX_MOBILE__ = {
     version: VERSION,
-    open: function () { if (isMobile()) document.body.classList.add('wx-drawer-open'); },
-    close: function () { document.body.classList.remove('wx-drawer-open'); },
-    toggle: function () { document.body.classList.toggle('wx-drawer-open'); },
+    open: function () { openDrawer(); },
+    close: function () { closeDrawer(); },
+    toggle: function () { toggleDrawer(); },
     sync: function () { sync(); }
   };
+
+  function openDrawer() {
+    if (!isMobile()) return;
+    document.body.classList.add('wx-drawer-open');
+    try { history.pushState({ wx: 'drawer' }, ''); } catch (e) {}
+  }
+  function closeDrawer() { document.body.classList.remove('wx-drawer-open'); }
+  function toggleDrawer() {
+    if (document.body.classList.contains('wx-drawer-open')) closeDrawer(); else openDrawer();
+  }
 
   /* ---------------- viewport ---------------- */
   var VP_CONTENT = 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover';
@@ -105,7 +115,30 @@
     'body.wx-mobile [class*="_home-footer-tip"]{font-size:12px!important}',
     'body.wx-mobile .chat-input-box-pc .tip,body.wx-mobile .ci-container .tip{font-size:12px!important;padding:2px 0 2px!important}',
     /* 消息区左右内边距 */
-    'body.wx-mobile .chat-qa-container{padding-left:14px!important;padding-right:14px!important;box-sizing:border-box!important}'
+    'body.wx-mobile .chat-qa-container{padding-left:14px!important;padding-right:14px!important;box-sizing:border-box!important}',
+
+    /* 右侧任务栏 -> 移动端全屏页（可关闭） */
+    'body.wx-mobile [class*="_right-bar-wrapper"]:not([class*="_hide"]){position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100vw!important;max-width:100vw!important;height:100dvh!important;z-index:1600!important;background:#fff!important;box-shadow:none!important;overflow:hidden!important}',
+    'body.wx-mobile.wx-rightbar-closed [class*="_right-bar-wrapper"]{display:none!important}',
+    'body.wx-mobile [class*="_right-bar-divider-hit-area"]{display:none!important}',
+    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="workspace-stage"],body.wx-mobile [class*="_right-bar-wrapper"] .chat-right-bar{width:100%!important;max-width:100%!important}',
+
+    /* 弹窗通用约束：不溢出屏幕 */
+    'body.wx-mobile [class*="_more-dropdown"],body.wx-mobile [class*="message-panel-container"],body.wx-mobile [class*="message-center-settings"],body.wx-mobile .chat-aside-user-menu-content,body.wx-mobile [class*="_more-dropdown-wrapper"]{max-width:calc(100vw - 24px)!important}',
+    'body.wx-mobile .ci-input-mode-panel{max-width:calc(100vw - 24px)!important;border-radius:16px!important;box-shadow:0 8px 32px rgba(0,0,0,.16)!important;backdrop-filter:blur(12px)}',
+    'body.wx-mobile .ci-merge-upload-fixed-popover{max-width:calc(100vw - 24px)!important;border-radius:14px!important;box-shadow:0 8px 32px rgba(0,0,0,.16)!important}',
+
+    /* 首页欢迎语 / 模式切换 / 推荐 */
+    'body.wx-mobile #welcomeText{font-size:22px!important;line-height:1.45!important}',
+    'body.wx-mobile [class*="_home-recommend-words-item"]{min-height:44px!important;font-size:15px!important}',
+
+    /* 侧栏条目热区 */
+    'body.wx-mobile .aside-main-tab{min-height:44px!important;font-size:15px!important}',
+    'body.wx-mobile .chat-history-time-item,body.wx-mobile .chat-aside-new-item{min-height:42px!important}',
+    'body.wx-mobile .chat-aside-container .chat-aside{box-sizing:border-box!important;padding-bottom:env(safe-area-inset-bottom,0px)!important}',
+
+    /* 滚动惯性 */
+    'body.wx-mobile #conversation-flow-content,body.wx-mobile .aside-scroll-container{-webkit-overflow-scrolling:touch!important}'
   ].join('\n');
 
   function injectCSS() {
@@ -123,7 +156,7 @@
     if (!s) {
       s = document.createElement('div');
       s.id = 'wx-scrim';
-      s.addEventListener('click', function () { document.body.classList.remove('wx-drawer-open'); });
+      s.addEventListener('click', function () { closeDrawer(); });
       document.body.appendChild(s);
     }
     return s;
@@ -136,7 +169,7 @@
     b.innerHTML = '<i></i>';
     b.addEventListener('click', function (e) {
       e.preventDefault(); e.stopPropagation();
-      document.body.classList.toggle('wx-drawer-open');
+      toggleDrawer();
     });
     return b;
   }
@@ -162,6 +195,30 @@
     if (work) { work.click(); didDefaultMode = true; }
   }
 
+  /* 右侧任务栏：可见时给一个关闭按钮，关掉后置 wx-rightbar-closed */
+  var lastRightHidden = null;
+  function ensureRightBar() {
+    var rb = q('[class*="_right-bar-wrapper"]');
+    if (!rb) return;
+    var hidden = /_hide/.test(rb.className || '');
+    if (lastRightHidden === null) lastRightHidden = hidden;
+    if (lastRightHidden !== hidden) {
+      lastRightHidden = hidden;
+      if (!hidden) document.body.classList.remove('wx-rightbar-closed'); // 新展开时重置
+    }
+    var btn = document.getElementById('wx-rightbar-close');
+    if (hidden) { if (btn) btn.style.display = 'none'; return; }
+    if (!btn) {
+      btn = document.createElement('div');
+      btn.id = 'wx-rightbar-close';
+      btn.textContent = '\u2715';
+      btn.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:1700;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.06);display:flex;align-items:center;justify-content:center;font-size:17px;color:#333;cursor:pointer;-webkit-tap-highlight-color:transparent';
+      btn.addEventListener('click', function () { document.body.classList.add('wx-rightbar-closed'); });
+      document.body.appendChild(btn);
+    }
+    btn.style.display = 'flex';
+  }
+
   function sync() {
     if (!document.body) return;
     markMobile();
@@ -169,6 +226,7 @@
     ensureScrim();
     ensureHamburger();
     applyDefaultMode();
+    ensureRightBar();
   }
 
   var pending = false;
@@ -209,7 +267,14 @@
     });
     mo.observe(document.documentElement, { childList: true, subtree: true });
     window.addEventListener('resize', scheduleSync, { passive: true });
-    window.addEventListener('popstate', function () { document.body.classList.remove('wx-drawer-open'); scheduleSync(); });
+    window.addEventListener('popstate', function () { closeDrawer(); scheduleSync(); });
+    /* 点抽屉里的条目后自动收起抽屉 */
+    document.addEventListener('click', function (e) {
+      if (!document.body.classList.contains('wx-drawer-open')) return;
+      var t = e.target;
+      var hit = t && t.closest && t.closest('.chat-history-time-item,.chat-aside-new-item,.aside-main-tab,.new-dialog-container,.chat-aside-user-menu-item');
+      if (hit) setTimeout(closeDrawer, 160);
+    }, true);
   }
 
   if (document.readyState === 'loading') {
