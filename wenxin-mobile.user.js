@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.13.0
+// @version      0.13.1
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏全屏页、桌面版网站模式缩放补偿。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        *://wenxin.baidu.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.13.0';
+  var VERSION = '0.13.1';
   var MOBILE_MAX = 1200;
   var SCALE_TARGET = 360;      // 缩放补偿后的目标逻辑宽度
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
@@ -176,6 +176,12 @@
     'body.wx-rightbar-closed #wx-rightbar-close{display:none!important}',
     'body.wx-mobile [class*="_right-bar-divider-hit-area"]{display:none!important}',
     'body.wx-mobile [class*="_right-bar-wrapper"] [class*="workspace-stage"],body.wx-mobile [class*="_right-bar-wrapper"] .chat-right-bar{width:100%!important;max-width:100%!important}',
+    /* 任务栏内部：内容框/预览/工具栏做移动端约束（仅作用于任务栏内部，避免影响其它页面） */
+    'body.wx-mobile [class*="_right-bar-wrapper"] iframe{width:100%!important;max-width:100%!important;border:0!important}',
+    'body.wx-mobile [class*="_right-bar-wrapper"] img,body.wx-mobile [class*="_right-bar-wrapper"] video,body.wx-mobile [class*="_right-bar-wrapper"] canvas{max-width:100%!important;height:auto!important}',
+    'body.wx-mobile [class*="_right-bar-wrapper"] pre,body.wx-mobile [class*="_right-bar-wrapper"] table{max-width:100%!important;overflow-x:auto!important}',
+    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="_header"],body.wx-mobile [class*="_right-bar-wrapper"] [class*="_toolbar"]{flex-wrap:wrap!important;overflow-x:auto!important;max-width:100%!important;box-sizing:border-box!important}',
+    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="_scroll-wrapper"],body.wx-mobile [class*="_right-bar-wrapper"] [class*="_content"]{max-width:100%!important;box-sizing:border-box!important}',
 
     /* 弹窗约束 */
     'body.wx-mobile [class*="_more-dropdown"],body.wx-mobile [class*="message-panel-container"],body.wx-mobile [class*="message-center-settings"],body.wx-mobile .chat-aside-user-menu-content,body.wx-mobile [class*="_more-dropdown-wrapper"]{max-width:calc(100vw - 24px)!important}',
