@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.10.0
+// @version      0.11.0
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏全屏页、桌面版网站模式缩放补偿。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        *://wenxin.baidu.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.10.0';
+  var VERSION = '0.11.0';
   var MOBILE_MAX = 1200;
   var SCALE_TARGET = 360;      // 缩放补偿后的目标逻辑宽度
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
@@ -113,10 +113,12 @@
 
     /* 缩放补偿模式基础 */
     'body.wx-scaled,body.wx-scaled #app,body.wx-scaled #cs-container-scroll{height:var(--wx-lh,100%)!important;max-height:var(--wx-lh,100%)!important}',
+    /* 首页内容被站点锚定在视口下方（偏移≈97%高度）导致上方大片空白 → 上移到约 32% 处 */
+    'body.wx-scaled #new-input-wrapper{margin-top:calc(var(--wx-lh,0px) * 0.32)!important}',
+    'body.wx-scaled #chat-input-home{top:calc(var(--wx-lh,0px) * 0.32)!important}',
     'body.wx-scaled #app,body.wx-scaled #cs-container-scroll{overflow:hidden!important}',
     'body.wx-scaled [class*="_chat-container-body"],body.wx-scaled [class*="_chat-container-wrapper"],body.wx-scaled [class*="_chat-container-pc"],body.wx-scaled [class*="_chat-container-main-wrapper"]{height:100%!important;max-height:100%!important}',
-    /* 站点大量用 vw 单位（不受 shim 影响），统一改回逻辑宽度 */
-    'body.wx-scaled #cs-container-scroll,body.wx-scaled [class*="_chat-container-body"],body.wx-scaled [class*="_chat-container-wrapper"],body.wx-scaled [class*="_chat-container-pc"],body.wx-scaled [class*="_chat-container-main-wrapper"],body.wx-scaled [class*="_chat-container-main_"],body.wx-scaled [class*="_chat-container-main-area"],body.wx-scaled [class*="_chat-container-main-stream"],body.wx-scaled [class*="_chat-body-container"],body.wx-scaled [class*="_content-area"],body.wx-scaled #conversation-flow-container,body.wx-scaled #new-page,body.wx-scaled #chat-input-home,body.wx-scaled #new-input-wrapper,body.wx-scaled [class*="_chat-bottom-wrapper"],body.wx-scaled [class*="_chat-top-bar-new"]{width:var(--wx-lw,100%)!important;max-width:var(--wx-lw,100%)!important;min-width:0!important;box-sizing:border-box!important}',
+    /* 站点大量用 vw 单位（不受 shim 影响），统一改回逻辑宽度 */    'body.wx-scaled #cs-container-scroll,body.wx-scaled [class*="_chat-container-body"],body.wx-scaled [class*="_chat-container-wrapper"],body.wx-scaled [class*="_chat-container-pc"],body.wx-scaled [class*="_chat-container-main-wrapper"],body.wx-scaled [class*="_chat-container-main_"],body.wx-scaled [class*="_chat-container-main-area"],body.wx-scaled [class*="_chat-container-main-stream"],body.wx-scaled [class*="_chat-body-container"],body.wx-scaled [class*="_content-area"],body.wx-scaled #conversation-flow-container,body.wx-scaled #new-page,body.wx-scaled #chat-input-home,body.wx-scaled #new-input-wrapper,body.wx-scaled [class*="_chat-bottom-wrapper"],body.wx-scaled [class*="_chat-top-bar-new"]{width:var(--wx-lw,100%)!important;max-width:var(--wx-lw,100%)!important;min-width:0!important;box-sizing:border-box!important}',
 
     /* 侧栏 -> 抽屉 */
     'body.wx-mobile .chat-aside-container{position:fixed!important;left:0;top:0;bottom:0;width:300px!important;max-width:84%;height:100%!important;z-index:1500;transform:translateX(-102%);transition:transform .28s cubic-bezier(.4,0,.2,1);will-change:transform;box-shadow:0 0 32px rgba(0,0,0,.20);background:#fff}',
@@ -169,7 +171,7 @@
 
     /* 右侧任务栏 -> 移动端全屏页（可关闭） */
     'body.wx-mobile [class*="_right-bar-wrapper"]:not([class*="_hide"]){position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;max-width:100%!important;height:100%!important;z-index:1600!important;background:#fff!important;box-shadow:none!important;overflow:hidden!important}',
-    'body.wx-mobile.wx-rightbar-closed [class*="_right-bar-wrapper"]{display:none!important}',
+    'body.wx-mobile.wx-rightbar-closed [class*="_right-bar-wrapper"]{visibility:hidden!important;pointer-events:none!important}',
     'body.wx-rightbar-closed #wx-rightbar-close{display:none!important}',
     'body.wx-mobile [class*="_right-bar-divider-hit-area"]{display:none!important}',
     'body.wx-mobile [class*="_right-bar-wrapper"] [class*="workspace-stage"],body.wx-mobile [class*="_right-bar-wrapper"] .chat-right-bar{width:100%!important;max-width:100%!important}',
@@ -247,10 +249,16 @@
 
   /* 右侧任务栏关闭按钮 */
   var lastRightHidden = null;
+  var hideToken = null;       // 站点自己的隐藏类（如 _hide_xxx），用它关闭最安全
+  function captureHideToken(rb) {
+    var m = (rb.className || '').match(/_hide[\w-]*/);
+    if (m && m[0]) hideToken = m[0];
+  }
   function ensureRightBar() {
     var rb = q('[class*="_right-bar-wrapper"]');
     if (!rb) return;
     var hidden = /_hide/.test(rb.className || '');
+    if (hidden) captureHideToken(rb);
     if (lastRightHidden === null) lastRightHidden = hidden;
     if (lastRightHidden !== hidden) {
       lastRightHidden = hidden;
@@ -265,6 +273,9 @@
       btn.style.cssText = 'position:fixed;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:1700;width:36px;height:36px;border-radius:50%;background:rgba(0,0,0,.08);display:flex;align-items:center;justify-content:center;font-size:17px;color:#333;cursor:pointer;-webkit-tap-highlight-color:transparent';
       btn.addEventListener('click', function (e) {
         e.preventDefault(); e.stopPropagation();
+        // 关键：用站点自己的 _hide 类关闭，避免其布局计算拿到 0 尺寸而白屏
+        var r = q('[class*="_right-bar-wrapper"]');
+        if (r && hideToken) { try { r.classList.add(hideToken); } catch (err) {} }
         document.body.classList.add('wx-rightbar-closed');
         btn.style.display = 'none';
       });
