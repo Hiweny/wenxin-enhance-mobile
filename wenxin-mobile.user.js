@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.7.0
+// @version      0.9.0
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏独立页。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        *://wenxin.baidu.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.7.0';
+  var VERSION = '0.9.0';
   var MOBILE_MAX = 1200;
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
   function isMobile() {
@@ -71,6 +71,12 @@
     /* 缩放补偿模式：站点按 innerWidth(941) 给顶层容器设了固定宽度，强制改回百分比 */
     'body.wx-scaled,body.wx-scaled body{width:100%!important;max-width:100%!important;overflow-x:hidden!important}',
     'body.wx-scaled #app,body.wx-scaled #cs-container-scroll{width:var(--wx-lw,100%)!important;max-width:var(--wx-lw,100%)!important}',
+    /* 缩放模式：容器高度必须按"逻辑视口高度"算，否则站点用 innerHeight 算出的高度会变成 2.4 倍 → 滚动失效 */
+    'body.wx-scaled #app,body.wx-scaled #cs-container-scroll{height:var(--wx-lh,100%)!important;max-height:var(--wx-lh,100%)!important;overflow:hidden!important}',
+    'body.wx-scaled [class*="_chat-container-body"],body.wx-scaled [class*="_chat-container-wrapper"],body.wx-scaled [class*="_chat-container-pc"],body.wx-scaled [class*="_chat-container-main-wrapper"]{height:100%!important;max-height:100%!important}',
+    /* 禁双击缩放 / 聚焦缩放 */
+    'html{touch-action:manipulation!important;-webkit-text-size-adjust:100%!important}',
+    'body{touch-action:manipulation!important}',
     'body.wx-scaled #app,body.wx-scaled #cs-container-scroll,body.wx-scaled [class*="_chat-container"],body.wx-scaled [class*="_chat-container-body"],body.wx-scaled [class*="_chat-container-wrapper"],body.wx-scaled [class*="_chat-container-pc"],body.wx-scaled [class*="_chat-container-main-wrapper"],body.wx-scaled [class*="_chat-container-main_"],body.wx-scaled [class*="_chat-container-main-area"],body.wx-scaled [class*="_chat-container-main-stream"],body.wx-scaled [class*="_chat-body-container"],body.wx-scaled [class*="_content-area"],body.wx-scaled #conversation-flow-container,body.wx-scaled #conversation-flow-content,body.wx-scaled #new-page,body.wx-scaled #chat-input-home,body.wx-scaled #new-input-wrapper,body.wx-scaled [class*="_chat-bottom-wrapper"]{max-width:var(--wx-lw,100%)!important;box-sizing:border-box!important}',
 
     /* 侧栏 -> 抽屉 */
@@ -225,10 +231,11 @@
   }
 
   /* 桌面版网站(UA)模式：Edge/Chrome 把布局视口锁成 ~980，页面整体缩小 → 缩放补偿 */
-  var SCALE_TARGET = 390;
+  var SCALE_TARGET = 360;
   function applyDesktopScale() {
     if (!isMobile()) return;
     var vw = window.innerWidth;
+    var vh = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
     var isCoarse = (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
     if (!isCoarse) return;
     if (vw > 700) {
@@ -236,13 +243,20 @@
       z = Math.round(z * 1000) / 1000;
       if (document.documentElement.style.zoom !== String(z)) {
         document.documentElement.style.zoom = String(z);
-        document.documentElement.style.setProperty('--wx-lw', (vw / z) + 'px');
         document.body.classList.add('wx-scaled');
+        document.documentElement.style.height = '100%';
+        document.body.style.height = '100%';
       }
+      var de = document.documentElement.style;
+      de.setProperty('--wx-lw', (vw / z) + 'px');
+      de.setProperty('--wx-lh', (vh / z) + 'px');
     } else if (document.documentElement.style.zoom) {
       document.documentElement.style.zoom = '';
       document.documentElement.style.removeProperty('--wx-lw');
+      document.documentElement.style.removeProperty('--wx-lh');
       document.body.classList.remove('wx-scaled');
+      document.documentElement.style.height = '';
+      document.body.style.height = '';
     }
   }
 
@@ -295,6 +309,9 @@
     });
     mo.observe(document.documentElement, { childList: true, subtree: true });
     window.addEventListener('resize', scheduleSync, { passive: true });
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', scheduleSync, { passive: true });
+    }
     window.addEventListener('popstate', function () { closeDrawer(); scheduleSync(); });
     /* 点抽屉里的条目后自动收起抽屉 */
     document.addEventListener('click', function (e) {
@@ -303,6 +320,17 @@
       var hit = t && t.closest && t.closest('.chat-history-time-item,.chat-aside-new-item,.aside-main-tab,.new-dialog-container,.chat-aside-user-menu-item');
       if (hit) setTimeout(closeDrawer, 160);
     }, true);
+
+    /* 禁止双击缩放（浏览器"双击放大"） */
+    var lastTouchEnd = 0;
+    document.addEventListener('touchend', function (e) {
+      var now = Date.now();
+      if (now - lastTouchEnd <= 320) {
+        if (e.cancelable) e.preventDefault();
+      }
+      lastTouchEnd = now;
+    }, { passive: false });
+    document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
   }
 
   if (document.readyState === 'loading') {
