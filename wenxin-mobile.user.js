@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.13.1
+// @version      0.15.0
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏全屏页、桌面版网站模式缩放补偿。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        *://wenxin.baidu.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.14.0';
+  var VERSION = '0.15.0';
   var MOBILE_MAX = 1200;
   var SCALE_TARGET = 360;      // 缩放补偿后的目标逻辑宽度
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
@@ -201,7 +201,87 @@
     'body.wx-mobile .chat-history-time-item,body.wx-mobile .chat-aside-new-item{min-height:42px!important}',
     'body.wx-mobile .chat-aside-container .chat-aside{padding-bottom:env(safe-area-inset-bottom,0px)!important}',
 
-    'body.wx-mobile #conversation-flow-content,body.wx-mobile .aside-scroll-container{-webkit-overflow-scrolling:touch!important}'
+    'body.wx-mobile #conversation-flow-content,body.wx-mobile .aside-scroll-container{-webkit-overflow-scrolling:touch!important}',
+
+    /* ================= 美化（body.wx-beauty / body.wx-bg） ================= */
+    /* 背景层：固定满屏 + 四周外扩，避免模糊时露边 */
+    '#wx-bg{position:fixed;left:-10px;top:-10px;width:calc(100% + 20px);height:calc(100% + 20px);z-index:-1;pointer-events:none;background-color:#17181c;background-position:center;background-repeat:no-repeat;background-size:cover;will-change:filter}',
+    /* 有背景图时：主容器透明，透出背景 */
+    'body.wx-bg,body.wx-bg #app,body.wx-bg #cs-container-scroll,body.wx-bg [class*="_chat-container-body"],body.wx-bg [class*="_chat-container-wrapper"],body.wx-bg #chat-container-main,body.wx-bg [class*="_chat-container-main"],body.wx-bg [class*="_chat-container-pc"],body.wx-bg [class*="_chat-container-main-wrapper"],body.wx-bg [class*="_new-home"],body.wx-bg [class*="_chat-body-container"],body.wx-bg #conversation-flow-container,body.wx-bg #conversation-flow-content,body.wx-bg .chat-qa-container,body.wx-bg [class*="_content-area"],body.wx-bg .aside-scroll-container,body.wx-bg #new-input-wrapper,body.wx-bg .answer-container,body.wx-bg .cs-rich-input,body.wx-bg [class*="ai-entry"],body.wx-bg [class*="_answer-block"],body.wx-bg [class*="_chat-container-pc_"]{background:transparent!important;background-image:none!important}',
+    /* 首页站点用 #new-input-wrapper::before 铺了一层纯白底（向上延伸满屏）→ 让它透明 */
+    'body.wx-bg #new-input-wrapper::before,body.wx-bg #new-input-wrapper::after{background:transparent!important;background-image:none!important}',
+    /* 侧栏抽屉：磨砂玻璃 */    'body.wx-bg [class*="chat-aside-container"],body.wx-bg .chat-aside{background:rgba(255,255,255,.66)!important;backdrop-filter:blur(26px) saturate(180%)!important;-webkit-backdrop-filter:blur(26px) saturate(180%)!important}',
+    '@media (prefers-color-scheme: dark){body.wx-bg [class*="chat-aside-container"],body.wx-bg .chat-aside{background:rgba(26,28,34,.74)!important}}',
+    /* 任务步骤 / 交付卡片：磨砂玻璃 */
+    'body.wx-bg [class*="_task-process"],body.wx-bg [class*="_deliverable-card"]{background:rgba(255,255,255,.20)!important;backdrop-filter:blur(16px) saturate(160%)!important;-webkit-backdrop-filter:blur(16px) saturate(160%)!important}',
+    '@media (prefers-color-scheme: dark){body.wx-bg [class*="_task-process"],body.wx-bg [class*="_deliverable-card"]{background:rgba(255,255,255,.10)!important}}',
+    /* 顶栏：去掉整条栏的底/边框/模糊，只留我方汉堡（汉堡注入在该栏内，故不能直接 display:none） */
+    'body.wx-beauty [class*="_chat-top-bar-new"]{background:transparent!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;border-bottom:0!important;box-shadow:none!important}',
+    'body.wx-beauty #chat-top-tab-list{display:none!important}',
+    /* 汉堡改为磨砂小圆钮，保证在任何背景上都可见 */
+    'body.wx-beauty #wx-hamburger{width:38px!important;height:38px!important;border-radius:12px!important;margin-right:auto!important;margin-left:0!important;background:rgba(255,255,255,.22)!important;backdrop-filter:blur(16px) saturate(170%)!important;-webkit-backdrop-filter:blur(16px) saturate(170%)!important;box-shadow:0 2px 10px rgba(0,0,0,.12)!important;color:#1c1c1e}',
+    'body.wx-beauty #wx-hamburger i,body.wx-beauty #wx-hamburger i:before,body.wx-beauty #wx-hamburger i:after{background:currentColor!important}',
+    '@media (prefers-color-scheme: dark){body.wx-beauty #wx-hamburger{background:rgba(255,255,255,.16)!important;color:#f2f3f5}}',
+    /* 首页示例样本去掉 */
+    'body.wx-beauty [class*="_home-recommend-wrapper"],body.wx-beauty [class*="_home-recommend-words"]{display:none!important}',
+    /* 底部 AI 标识：视觉隐藏但保留占位（输入框保持悬浮，不贴底） */
+    'body.wx-beauty [class*="_home-footer-tip"],body.wx-beauty .chat-input-box-pc .tip,body.wx-beauty .ci-container .tip{visibility:hidden!important;pointer-events:none!important}',
+    /* 输入框磨砂玻璃（保留原生五彩边框 .ci-wrapper-border） */
+    'body.wx-beauty .ci-wrapper{background:rgba(255,255,255,.20)!important;background-image:none!important;backdrop-filter:blur(26px) saturate(185%)!important;-webkit-backdrop-filter:blur(26px) saturate(185%)!important;border-radius:22px!important}',
+    'body.wx-beauty .ci-wrapper-box-shadow{background:transparent!important;background-image:none!important;box-shadow:0 10px 30px rgba(0,0,0,.16)!important;border-radius:22px!important}',
+    'body.wx-beauty .ci-container{background:transparent!important}',
+    '@media (prefers-color-scheme: dark){body.wx-beauty .ci-wrapper{background:rgba(38,40,48,.36)!important}}',
+    /* 原生边框底板（纯色填充）改为「透明底 + 同色内描边」，既保留彩色边框又让磨砂玻璃透出背景 */
+    'body.wx-beauty .ci-wrapper-border{background:transparent!important;background-image:none!important;box-shadow:inset 0 0 0 1.8px rgba(150,170,255,.95)!important}',
+    '@media (prefers-color-scheme: dark){body.wx-beauty .ci-wrapper-border{box-shadow:inset 0 0 0 1.8px rgba(165,182,255,.92)!important}}',
+    'body.wx-beauty .cs-rich-input{background:transparent!important}',
+    /* 输入文本域/内部容器自带白底 → 透明，避免盖住磨砂层（这就是深色模式下的灰块来源） */
+    'body.wx-beauty #chat-textarea,body.wx-beauty .ci-textarea,body.wx-beauty #ci-area,body.wx-beauty .ci-file-input-wrapper,body.wx-beauty .ci-container>div{background:transparent!important;background-image:none!important}',
+    'body.wx-beauty .ci-scroll-style{background:transparent!important}',
+    /* 首页「对话/工作」药丸：磨砂玻璃 */
+    'body.wx-bg [class*="_home-mode-switch_"]{background:rgba(255,255,255,.20)!important;backdrop-filter:blur(16px) saturate(160%)!important;-webkit-backdrop-filter:blur(16px) saturate(160%)!important}',
+    '@media (prefers-color-scheme: dark){body.wx-bg [class*="_home-mode-switch_"]{background:rgba(255,255,255,.10)!important}}',
+    /* 用户气泡磨砂玻璃 */
+    'body.wx-beauty .cs-question-bubble.cs-bubble{background:rgba(255,255,255,.58)!important;backdrop-filter:blur(20px) saturate(180%)!important;-webkit-backdrop-filter:blur(20px) saturate(180%)!important;border:1px solid rgba(255,255,255,.65)!important;box-shadow:0 6px 20px rgba(0,0,0,.10)!important;border-radius:20px!important}',
+    '@media (prefers-color-scheme: dark){body.wx-beauty .cs-question-bubble.cs-bubble{background:rgba(255,255,255,.16)!important;border-color:rgba(255,255,255,.22)!important;color:#f2f3f5!important}}',
+
+    /* 设置按钮（注入到输入框左工具栏） */
+    '#wx-settings-btn{width:34px;height:34px;margin-left:4px;border:0;padding:0;background:transparent;display:flex;align-items:center;justify-content:center;flex:0 0 auto;cursor:pointer;border-radius:10px;-webkit-tap-highlight-color:transparent;color:#6b7280}',
+    '#wx-settings-btn:active{background:rgba(127,127,127,.20)}',
+    '#wx-settings-btn svg{width:20px;height:20px;display:block}',
+    '@media (prefers-color-scheme: dark){#wx-settings-btn{color:#c9cdd6}}',
+
+    /* 设置面板 */
+    '#wx-settings-mask{position:fixed;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,.38);z-index:9000;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s,visibility .2s}',
+    '#wx-settings-mask.show{opacity:1;visibility:visible;pointer-events:auto}',
+    '#wx-settings-sheet{position:fixed;left:0;right:0;bottom:0;z-index:9001;transform:translateY(105%);visibility:hidden;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility .3s;background:rgba(255,255,255,.80);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border-radius:20px 20px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.22);color:#1c1c1e;font-size:15px;padding:10px 16px calc(16px + env(safe-area-inset-bottom,0px));box-sizing:border-box}',
+    '#wx-settings-sheet.show{transform:translateY(0);visibility:visible}',
+    '@media (prefers-color-scheme: dark){#wx-settings-sheet{background:rgba(32,34,40,.88);color:#f2f3f5}}',
+    '#wx-set-handle{width:40px;height:5px;border-radius:3px;background:rgba(127,127,127,.4);margin:2px auto 8px}',
+    '.wx-set-title{font-size:16px;font-weight:600;text-align:center;margin:0 0 12px}',
+    '.wx-set-label{font-size:13px;opacity:.72;margin:12px 0 6px}',
+    '.wx-set-label2{font-size:14px;opacity:.85;width:52px;flex:0 0 auto}',
+    '.wx-set-row{display:flex;align-items:center;gap:8px}',
+    '.wx-set-preview-row{justify-content:space-between;margin-bottom:4px}',
+    '#wx-set-preview{width:100%;height:96px;flex:1 1 auto;border-radius:14px;background-size:cover;background-position:center;background-color:rgba(127,127,127,.16);border:1px solid rgba(127,127,127,.18);margin-right:10px}',
+    '.wx-set-btns{display:flex;flex-direction:column;gap:8px}',
+    '.wx-set-btn{border:0;background:rgba(120,140,255,.16);color:#3b5bdb;font-size:14px;padding:8px 14px;border-radius:12px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}',
+    '@media (prefers-color-scheme: dark){.wx-set-btn{background:rgba(120,140,255,.24);color:#aebcff}}',
+    '.wx-set-btn.ghost{background:rgba(127,127,127,.16);color:inherit}',
+    '#wx-set-url{flex:1 1 auto;min-width:0;height:38px;border-radius:12px;border:1px solid rgba(127,127,127,.28);background:rgba(255,255,255,.6);color:inherit;font-size:14px;padding:0 12px;box-sizing:border-box}',
+    '@media (prefers-color-scheme: dark){#wx-set-url{background:rgba(255,255,255,.10)}}',
+    '.wx-set-range{flex:1 1 auto;min-width:0;accent-color:#3b5bdb;height:28px}',
+    '.wx-set-val{width:34px;text-align:right;font-size:13px;opacity:.72;flex:0 0 auto}',
+    '.wx-set-switch{position:relative;width:48px;height:28px;flex:0 0 auto;margin-left:auto}',
+    '.wx-set-switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0}',
+    '.wx-set-switch span{position:absolute;inset:0;border-radius:999px;background:rgba(127,127,127,.35);transition:background .2s}',
+    '.wx-set-switch span:after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .2s}',
+    '.wx-set-switch input:checked+span{background:#3b5bdb}',
+    '.wx-set-switch input:checked+span:after{transform:translateX(20px)}',
+    '.wx-set-primary{width:100%;margin-top:16px;height:46px;border:0;border-radius:14px;background:#3b5bdb;color:#fff;font-size:16px;font-weight:600;cursor:pointer}',
+    '.wx-set-primary:active{filter:brightness(.94)}',
+    '.wx-set-row+.wx-set-row{margin-top:10px}'
+
   ].join('\n');
 
   /* 右侧任务栏内的 HTML 预览是 qiankun 微应用，跑在 Shadow DOM 里：
@@ -233,6 +313,131 @@
         sr.appendChild(s);
       }
     }
+  }
+
+  /* ================= 美化：背景 + 设置面板 ================= */
+  var BEAUTY_KEY = 'wx-beauty-v1';
+  var BEAUTY = { img: '', blur: 0, bright: 100, on: true };
+  function loadBeauty() {
+    try {
+      var s = JSON.parse(localStorage.getItem(BEAUTY_KEY) || '{}');
+      if (typeof s.img === 'string') BEAUTY.img = s.img;
+      if (typeof s.blur === 'number') BEAUTY.blur = s.blur;
+      if (typeof s.bright === 'number') BEAUTY.bright = s.bright;
+      if (typeof s.on === 'boolean') BEAUTY.on = s.on;
+    } catch (e) {}
+  }
+  function saveBeauty() {
+    try { localStorage.setItem(BEAUTY_KEY, JSON.stringify(BEAUTY)); }
+    catch (e) { try { alert('背景保存失败：图片过大，请改用图片链接'); } catch (e2) {} }
+  }
+  loadBeauty();
+
+  var beautySig = '';
+  function applyBeauty() {
+    if (!document.body) return;
+    var sig = (BEAUTY.on ? 1 : 0) + '|' + BEAUTY.blur + '|' + BEAUTY.bright + '|' + BEAUTY.img.length + '|' + BEAUTY.img.slice(-24);
+    if (sig === beautySig && document.getElementById('wx-bg')) return;
+    beautySig = sig;
+    document.body.classList.toggle('wx-beauty', !!BEAUTY.on);
+    document.body.classList.toggle('wx-bg', !!BEAUTY.on && !!BEAUTY.img);
+    var bg = document.getElementById('wx-bg');
+    if (!bg) { bg = document.createElement('div'); bg.id = 'wx-bg'; document.body.appendChild(bg); }
+    var u = BEAUTY.img ? 'url("' + BEAUTY.img.replace(/"/g, '%22') + '")' : 'none';
+    bg.style.backgroundImage = u;
+    bg.style.filter = 'blur(' + (BEAUTY.blur || 0) + 'px) brightness(' + ((BEAUTY.bright || 100) / 100) + ')';
+    var pv = document.getElementById('wx-set-preview'); if (pv) pv.style.backgroundImage = u;
+    var e1 = document.getElementById('wx-set-blur'); if (e1) e1.value = BEAUTY.blur;
+    var e2 = document.getElementById('wx-set-bright'); if (e2) e2.value = BEAUTY.bright;
+    var v1 = document.getElementById('wx-set-blur-v'); if (v1) v1.textContent = BEAUTY.blur;
+    var v2 = document.getElementById('wx-set-bright-v'); if (v2) v2.textContent = BEAUTY.bright;
+    var ck = document.getElementById('wx-set-on'); if (ck) ck.checked = !!BEAUTY.on;
+  }
+
+  var GEAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.1"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6h.09A1.65 1.65 0 0 0 10.6 3.09V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 16 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09A1.65 1.65 0 0 0 20.91 10.6H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+  function ensureSettingsButton() {
+    if (!document.body || !isMobile()) return;
+    if (document.getElementById('wx-settings-btn')) return;
+    var wrap = document.querySelector('.ci-left-tools-wrapper') || document.querySelector('.ci-left-tool') || document.querySelector('.ci-tool');
+    if (!wrap) return;
+    var b = document.createElement('button');
+    b.id = 'wx-settings-btn';
+    b.type = 'button';
+    b.setAttribute('aria-label', '设置');
+    b.innerHTML = GEAR_SVG;
+    b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); openSettings(); });
+    wrap.appendChild(b);
+  }
+
+  var PANEL_INNER = [
+    '<div id="wx-set-handle"></div>',
+    '<div class="wx-set-title">设置</div>',
+    '<div class="wx-set-row wx-set-preview-row">',
+    '  <div id="wx-set-preview"></div>',
+    '  <div class="wx-set-btns">',
+    '    <label class="wx-set-btn">上传图片<input id="wx-set-file" type="file" accept="image/*" style="display:none"></label>',
+    '    <button id="wx-set-clear" class="wx-set-btn ghost" type="button">清除</button>',
+    '  </div>',
+    '</div>',
+    '<div class="wx-set-label">图片链接</div>',
+    '<div class="wx-set-row">',
+    '  <input id="wx-set-url" type="url" inputmode="url" placeholder="https:// 或 data:image/...">',
+    '  <button id="wx-set-apply" class="wx-set-btn" type="button">应用</button>',
+    '</div>',
+    '<div class="wx-set-row" style="margin-top:14px"><span class="wx-set-label2">模糊度</span><input id="wx-set-blur" class="wx-set-range" type="range" min="0" max="40" step="1"><span id="wx-set-blur-v" class="wx-set-val">0</span></div>',
+    '<div class="wx-set-row"><span class="wx-set-label2">亮度</span><input id="wx-set-bright" class="wx-set-range" type="range" min="30" max="150" step="5"><span id="wx-set-bright-v" class="wx-set-val">100</span></div>',
+    '<div class="wx-set-row" style="margin-top:14px"><span class="wx-set-label2" style="width:auto">界面美化</span><label class="wx-set-switch"><input id="wx-set-on" type="checkbox"><span></span></label></div>',
+    '<button id="wx-set-done" class="wx-set-primary" type="button">完成</button>'
+  ].join('\n');
+
+  var panelBuilt = false;
+  function buildSettings() {
+    if (panelBuilt) return;
+    panelBuilt = true;
+    var mask = document.createElement('div'); mask.id = 'wx-settings-mask';
+    var sheet = document.createElement('div'); sheet.id = 'wx-settings-sheet'; sheet.innerHTML = PANEL_INNER;
+    document.body.appendChild(mask); document.body.appendChild(sheet);
+    mask.addEventListener('click', closeSettings);
+    var $ = function (id) { return document.getElementById(id); };
+    $('wx-set-done').addEventListener('click', closeSettings);
+    $('wx-set-file').addEventListener('change', function () {
+      var f = this.files && this.files[0]; if (!f) return;
+      if (f.size > 4 * 1024 * 1024) { alert('图片较大（' + Math.round(f.size / 1048576) + 'MB），可能保存失败，建议用图片链接'); }
+      var fr = new FileReader();
+      fr.onload = function () { BEAUTY.img = String(fr.result); saveBeauty(); applyBeauty(); };
+      fr.readAsDataURL(f);
+    });
+    $('wx-set-clear').addEventListener('click', function () { BEAUTY.img = ''; saveBeauty(); applyBeauty(); var u = $('wx-set-url'); if (u) u.value = ''; });
+    $('wx-set-apply').addEventListener('click', function () {
+      var u = ($('wx-set-url').value || '').trim();
+      if (!u) { BEAUTY.img = ''; saveBeauty(); applyBeauty(); return; }
+      if (!/^(https?:\/\/|data:image\/)/i.test(u)) { alert('请输入以 http(s):// 或 data:image/ 开头的图片地址'); return; }
+      BEAUTY.img = u; saveBeauty(); applyBeauty();
+    });
+    var bl = $('wx-set-blur'), br = $('wx-set-bright');
+    bl.addEventListener('input', function () { BEAUTY.blur = +this.value; var el = $('wx-set-blur-v'); if (el) el.textContent = BEAUTY.blur; applyBeautyLive(); });
+    bl.addEventListener('change', function () { saveBeauty(); });
+    br.addEventListener('input', function () { BEAUTY.bright = +this.value; var el = $('wx-set-bright-v'); if (el) el.textContent = BEAUTY.bright; applyBeautyLive(); });
+    br.addEventListener('change', function () { saveBeauty(); });
+    $('wx-set-on').addEventListener('change', function () { BEAUTY.on = this.checked; saveBeauty(); applyBeauty(); });
+  }
+  /* 拖动滑块时即时预览（跳过签名缓存） */
+  function applyBeautyLive() {
+    var bg = document.getElementById('wx-bg');
+    if (bg) bg.style.filter = 'blur(' + (BEAUTY.blur || 0) + 'px) brightness(' + ((BEAUTY.bright || 100) / 100) + ')';
+  }
+  function openSettings() {
+    buildSettings();
+    beautySig = '';   /* 强制刷新面板上的预览/滑块/开关 */
+    applyBeauty();
+    var m = document.getElementById('wx-settings-mask'), s = document.getElementById('wx-settings-sheet');
+    if (m) m.classList.add('show');
+    if (s) s.classList.add('show');
+  }
+  function closeSettings() {
+    var m = document.getElementById('wx-settings-mask'), s = document.getElementById('wx-settings-sheet');
+    if (m) m.classList.remove('show');
+    if (s) s.classList.remove('show');
   }
 
   function injectCSS() {
@@ -408,6 +613,8 @@
     ensureHamburger();
     applyDefaultMode();
     ensureRightBar();
+    ensureSettingsButton();
+    applyBeauty();
   }
 
   var pending = false;
