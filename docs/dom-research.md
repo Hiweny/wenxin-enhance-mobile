@@ -246,3 +246,30 @@ page.goto("https://wenxin.baidu.com/")
 4. **顶部让位**：shadow 里 header 的「代码/预览」标签左对齐（`padding-right:150px` 给工具栏留位）；light DOM 工具栏贴右、触控区放大到 38px。
 5. **「代码」标签页**：文件树(min-w 156) + 编辑器(min-w 220) 会超 360 → 放开 `[class*="ccw-min-w-"]` 的 min-width，编辑器内部横向滚动。
 6. **关闭不白屏**：站点 X 会加 `_hide` 类 → 覆盖层规则用 `body.wx-rightbar-open [class*="_right-bar-wrapper"]:not([class*="_hide"])`，`_hide` 一出现覆盖层立即撤销；另用 600ms 轮询纠正 body 的 `wx-rightbar-open`（因为 class 变化不触发 childList 观察器）。**绝不设 `display:none`/`visibility:hidden`**。
+
+---
+
+## 8. 美化改造（背景 / 磨砂玻璃 / 精简）要点
+
+设置入口：齿轮按钮零侵入注入到 `.ci-left-tools-wrapper`（与模式按钮 `.ci-input-mode-button`、四宫格 `#ci-tools` 同排）；面板为底部弹层，`max-height:88vh` 可滚动。
+
+### 背景实现
+- 独立层 `#wx-bg`：`position:fixed; inset:-10px; z-index:-1; background:center/cover`，`filter:blur(Npx) brightness(M)`（模糊控最外层）。有图时给 `body` 加 `wx-bg`。
+- 让背景透出：把主链路容器 `background:transparent`（`#app/#cs-container-scroll/*_chat-container*/#conversation-flow-*/.chat-qa-container/.answer-container/.cs-rich-input/#new-input-wrapper` 等）。
+
+### ⚠️ 两个「隐形白块」坑（用 elementsFromPoint 找不到，须用像素采样 + 伪元素扫描）
+1. **`#new-input-wrapper::before`**：站点用它铺了一层**纯白底**（`position:absolute; inset:-1581px 0 0; width:360px; height:1748px`）当首页底色 → 必须 `background:transparent`。它不占事件、`elementsFromPoint` 会跳过，只能靠**伪元素扫描**或**像素条带检测**发现。
+2. **`textarea#chat-textarea` 自带 `background:#fff`** → 深色模式下就是那个「灰块」，盖住磨砂层；须透明化（连带 `#ci-area/.ci-file-input-wrapper/.ci-container>div`）。
+
+### 输入框磨砂 + 保留原生边框
+- `.ci-wrapper` → 半透明 + `backdrop-filter:blur(26px) saturate(185%)`。
+- `.ci-wrapper-border` 本是不透明纯色底板（`#B2C2FF`），既是边框又是填充 → 改 `background:transparent` + `box-shadow:inset 0 0 0 1.8px rgba(165,182,255,.92)`，等于「保留同色圆角描边 + 内部透明」，磨砂才能透出背景。
+
+### 顶栏精简的坑
+- 汉堡 `#wx-hamburger` 是**注入到 `._chat-top-bar-new` 内部**的（`insertBefore(bar.firstChild)`）。所以顶栏不能 `display:none`（连汉堡一起没），应设为 **透明 + 去边框/去模糊**，只隐藏 `#chat-top-tab-list`；再给汉堡 `margin-right:auto` 强制靠左。
+
+### 底部 AI 标识
+- 用 `visibility:hidden`（保留占位）而非 `display:none`，避免首页竖直居中错位、输入框被顶到底部。
+
+### ⚠️ 测试视口比例（重要）
+手机「桌面版网站」模式下：布局宽被锁 ~941，而 visualViewport 高度 = 屏高÷缩放。真机是竖屏，故 **Playwright 测试视口应为 941×约1748（逻辑 360×669）**，而不是 941×780（会觉得是横屏、竖向比例全错）。用 `--wx-lh` 的布局才与真机一致。
