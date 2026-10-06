@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.13.1';
+  var VERSION = '0.14.0';
   var MOBILE_MAX = 1200;
   var SCALE_TARGET = 360;      // 缩放补偿后的目标逻辑宽度
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
@@ -170,17 +170,21 @@
     'body.wx-mobile .chat-qa-container{padding-left:14px!important;padding-right:14px!important;box-sizing:border-box!important}',
 
     /* 右侧任务栏 -> 移动端全屏页（可关闭） */
-    'body.wx-mobile [class*="_right-bar-wrapper"]:not([class*="_hide"]){position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:100%!important;max-width:100%!important;height:100%!important;z-index:1600!important;background:#fff!important;box-shadow:none!important;overflow:hidden!important}',
+    'body.wx-mobile.wx-rightbar-open [class*="_right-bar-wrapper"]:not([class*="_hide"]){position:fixed!important;left:0!important;right:0!important;top:0!important;bottom:0!important;width:var(--wx-lw,100%)!important;max-width:var(--wx-lw,100%)!important;height:var(--wx-lh,100%)!important;z-index:1600!important;background:#fff!important;box-shadow:none!important;overflow:hidden!important}',
     /* 关闭时：只撤销我们的全屏覆盖，绝不设 display/visibility（否则站点布局计算拿到 0 尺寸会白屏） */
     'body.wx-rightbar-closed [class*="_right-bar-wrapper"]{position:static!important;left:auto!important;right:auto!important;top:auto!important;bottom:auto!important;width:auto!important;max-width:none!important;height:auto!important;overflow:visible!important}',
     'body.wx-rightbar-closed #wx-rightbar-close{display:none!important}',
     'body.wx-mobile [class*="_right-bar-divider-hit-area"]{display:none!important}',
-    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="workspace-stage"],body.wx-mobile [class*="_right-bar-wrapper"] .chat-right-bar{width:100%!important;max-width:100%!important}',
-    /* 任务栏内部：内容框/预览/工具栏做移动端约束（仅作用于任务栏内部，避免影响其它页面） */
+    /* 任务栏内部：整条链路强制为逻辑视口宽度，消除 580px 横向溢出（站点把内部最小宽度按 PC 定死） */
+    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="workspace-stage"],body.wx-mobile [class*="_right-bar-wrapper"] #work-stage,body.wx-mobile [class*="_right-bar-wrapper"] [id*="__qiankun_microapp_wrapper"],body.wx-mobile [class*="_right-bar-wrapper"] [class*="_ease-in-show"],body.wx-mobile [class*="_right-bar-wrapper"] [class*="_workspace_"],body.wx-mobile [class*="_right-bar-wrapper"] .chat-right-bar{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}',
+    /* 任务栏右上工具栏（下载/复制/上传/关闭）：放大触控区、贴右不出屏 */
+    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="_header-actions"]{right:6px!important;top:6px!important;height:44px!important;align-items:center!important;z-index:5!important;gap:0!important}',
+    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="_header-actions"]>*{margin:0!important}',
+    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="_header-actions"] [class*="cos-tooltip"]{min-width:38px!important;min-height:38px!important;display:flex!important;align-items:center!important;justify-content:center!important}',
+    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="_header-actions"] [class*="cos-icon"]{transform:scale(1.4)!important}',
     'body.wx-mobile [class*="_right-bar-wrapper"] iframe{width:100%!important;max-width:100%!important;border:0!important}',
     'body.wx-mobile [class*="_right-bar-wrapper"] img,body.wx-mobile [class*="_right-bar-wrapper"] video,body.wx-mobile [class*="_right-bar-wrapper"] canvas{max-width:100%!important;height:auto!important}',
     'body.wx-mobile [class*="_right-bar-wrapper"] pre,body.wx-mobile [class*="_right-bar-wrapper"] table{max-width:100%!important;overflow-x:auto!important}',
-    'body.wx-mobile [class*="_right-bar-wrapper"] [class*="_header"],body.wx-mobile [class*="_right-bar-wrapper"] [class*="_toolbar"]{flex-wrap:wrap!important;overflow-x:auto!important;max-width:100%!important;box-sizing:border-box!important}',
     'body.wx-mobile [class*="_right-bar-wrapper"] [class*="_scroll-wrapper"],body.wx-mobile [class*="_right-bar-wrapper"] [class*="_content"]{max-width:100%!important;box-sizing:border-box!important}',
 
     /* 弹窗约束 */
@@ -199,6 +203,37 @@
 
     'body.wx-mobile #conversation-flow-content,body.wx-mobile .aside-scroll-container{-webkit-overflow-scrolling:touch!important}'
   ].join('\n');
+
+  /* 右侧任务栏内的 HTML 预览是 qiankun 微应用，跑在 Shadow DOM 里：
+     普通 document 样式进不去，必须把样式注入到它的 shadowRoot。
+     目标：把内部按 PC 定死的宽度/留白改成手机宽度，并给顶部「代码/预览」标签让位给右上工具栏。 */
+  var SHADOW_CSS = [
+    ':host{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;display:block!important}',
+    '#comate-chat-workspace{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow-x:hidden!important}',
+    '#comate-chat-workspace>div{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}',
+    '#comate-chat-workspace header{padding-left:6px!important;padding-right:150px!important;box-sizing:border-box!important;justify-content:flex-start!important}',
+    '#comate-chat-workspace header>div{margin-left:0!important;margin-right:0!important}',
+    '#comate-chat-workspace header>div>div{width:64px!important}',
+    /* 「代码」标签页：文件树(min-w 156) + 编辑器(min-w 220) 会超出 360 → 放开最小宽度，编辑器内部横向滚动 */
+    '#comate-chat-workspace [class*="ccw-min-w-"]{min-width:0!important}',
+    '#comate-chat-workspace [class*="ccw-w-fit"]{max-width:100%!important}',
+    '#comate-chat-workspace .cm-theme,#comate-chat-workspace .cm-editor,#comate-chat-workspace .cm-scroller{min-width:0!important;max-width:100%!important}',
+    'iframe{width:100%!important;max-width:100%!important;border:0!important}'
+  ].join('\n');
+
+  function injectShadowCSS() {
+    var hosts = document.querySelectorAll('[id*="qiankun_microapp_wrapper"],[id^="__qiankun"]');
+    for (var i = 0; i < hosts.length; i++) {
+      var sr = hosts[i].shadowRoot;
+      if (sr && !sr.getElementById('wx-shadow-css')) {
+        var s = document.createElement('style');
+        s.id = 'wx-shadow-css';
+        s.type = 'text/css';
+        s.textContent = SHADOW_CSS;
+        sr.appendChild(s);
+      }
+    }
+  }
 
   function injectCSS() {
     if (document.getElementById('wx-mobile-css')) return;
@@ -261,11 +296,25 @@
     var m = (rb.className || '').match(/_hide[\w-]*/);
     if (m && m[0]) hideToken = m[0];
   }
+  function rbVisible(rb) {
+    var cls = rb.className || '';
+    if (/_hide/.test(cls)) return false;
+    if (/right-bar-wrapper-live/.test(cls)) return true;
+    /* 曾判定为打开、此刻又丢了 open 类 → 说明站点已收起，避免我方覆盖层残留 */
+    if (document.body.classList.contains('wx-rightbar-open')) return false;
+    return rb.getBoundingClientRect().width > 2;
+  }
   function ensureRightBar() {
     var rb = q('[class*="_right-bar-wrapper"]');
     if (!rb) return;
     var hidden = /_hide/.test(rb.className || '');
     if (hidden) captureHideToken(rb);
+    if (rbVisible(rb)) {
+      if (!document.body.classList.contains('wx-rightbar-open')) document.body.classList.add('wx-rightbar-open');
+      injectShadowCSS();
+    } else if (document.body.classList.contains('wx-rightbar-open')) {
+      document.body.classList.remove('wx-rightbar-open');
+    }
     if (lastRightHidden === null) lastRightHidden = hidden;
     if (lastRightHidden !== hidden) {
       lastRightHidden = hidden;
@@ -314,7 +363,13 @@
       });
       document.body.appendChild(btn);
     }
-    btn.style.display = 'flex';
+    /* 站点工具栏自带的 X 已随移动端适配进入屏内、触控区足够大 → 隐藏我们的兜底键，避免两个关闭键重叠 */
+    var siteClose = null;
+    try {
+      var acts = q('[class*="_header-actions"]');
+      if (acts) siteClose = acts.querySelector('[class*="cos-icon-close"],[class*="close"]');
+    } catch (e) {}
+    btn.style.display = (siteClose && siteClose.getBoundingClientRect().width > 0) ? 'none' : 'flex';
   }
 
   /* 缩放补偿 */
@@ -394,6 +449,13 @@
       }
     });
     mo.observe(document.documentElement, { childList: true, subtree: true });
+    /* 微应用 shadowRoot 的建立、以及任务栏 class 变化都不触发 childList 观察器 → 轮询兜底：
+       打开期间补注入 shadow 样式；收起时及时撤掉我方覆盖层（避免残留导致白屏） */
+    setInterval(function () {
+      if (!document.body || !isMobile()) return;
+      ensureRightBar();
+      if (document.body.classList.contains('wx-rightbar-open')) injectShadowCSS();
+    }, 600);
     window.addEventListener('resize', scheduleSync, { passive: true });
     if (window.visualViewport) window.visualViewport.addEventListener('resize', scheduleSync, { passive: true });
     window.addEventListener('popstate', function () { closeDrawer(); scheduleSync(); });
