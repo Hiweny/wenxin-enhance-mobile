@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.3.0
+// @version      0.4.0
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏独立页。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
-// @match        https://wenxin.baidu.com/*
-// @match        https://chat.baidu.com/*
+// @match        *://wenxin.baidu.com/*
+// @match        *://chat.baidu.com/*
+// @match        *://yiyan.baidu.com/*
 // @icon         https://www.baidu.com/favicon.ico
 // @run-at       document-start
 // @grant        none
@@ -15,9 +16,17 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.3.0';
-  var MOBILE_MAX = 900;
-  function isMobile() { return window.innerWidth <= MOBILE_MAX; }
+  var VERSION = '0.4.0';
+  var MOBILE_MAX = 1200;
+  var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
+  function isMobile() {
+    if (FORCE_OFF) return false;
+    if (window.innerWidth > 1400) return false;           // 真·宽屏桌面，不启用
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+    if (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) return true;
+    if (/Android|iPhone|iPad|iPod|Mobile|HarmonyOS/i.test(navigator.userAgent)) return true;
+    return window.innerWidth <= MOBILE_MAX;
+  }
   function q(sel, root) { return (root || document).querySelector(sel); }
   function qa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
 
@@ -177,9 +186,21 @@
   }
   whenDocReady(function () { fixViewport(); injectCSS(); });
 
+  function debugBadge() {
+    if (!/[#&?]wxdebug/.test(location.href)) return;
+    if (document.getElementById('wx-debug')) return;
+    var d = document.createElement('div');
+    d.id = 'wx-debug';
+    d.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99999;background:#111;color:#0f0;font:12px/1.5 monospace;padding:6px 8px;border-radius:8px;max-width:82vw;word-break:break-all';
+    d.textContent = 'WXMobile v' + VERSION + ' | innerW=' + window.innerWidth + ' | mobile=' + isMobile() + ' | touch=' + navigator.maxTouchPoints;
+    document.body.appendChild(d);
+  }
+
   function boot() {
+    try { console.log('[WXMobile] v' + VERSION + ' loaded, mobile=' + isMobile() + ', innerWidth=' + window.innerWidth); } catch (e) {}
     injectCSS();
     sync();
+    debugBadge();
     var mo = new MutationObserver(function (muts) {
       for (var i = 0; i < muts.length; i++) {
         var an = muts[i].addedNodes;
