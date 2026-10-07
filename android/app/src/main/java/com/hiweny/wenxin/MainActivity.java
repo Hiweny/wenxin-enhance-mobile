@@ -33,6 +33,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsAnimationCompat;
 import androidx.core.view.WindowInsetsCompat;
+import androidx.webkit.WebSettingsCompat;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
@@ -173,6 +174,7 @@ public class MainActivity extends Activity {
         s.setUserAgentString(DESKTOP_UA);
         s.setMinimumFontSize(0);
         s.setDefaultTextEncodingName("utf-8");
+        applyDarkMode(s);
 
         // 登录态：允许 Cookie 与第三方 Cookie（百度 passport 跨站登录）
         CookieManager cm = CookieManager.getInstance();
@@ -304,6 +306,31 @@ public class MainActivity extends Activity {
         }
         if (savedInstanceState == null) web.loadUrl(startUrl);
         else web.restoreState(savedInstanceState);
+    }
+
+    /**
+     * 深色模式：让 WebView 走「强制深色」——等价于桌面浏览器里的"强制为此站点启用深色"。
+     * 文心网页自身对深色适配不完整（输入框、选中标签、列表卡片仍是浅色，正文对比偏低），
+     * 开启后 WebView 会统一做算法化反色，配合注入的兜底样式即可消除深色下的白块与低对比文字。
+     */
+    private void applyDarkMode(WebSettings s) {
+        boolean dark = isDark();
+        try {
+            if (WebSettingsCompat.isForceDarkSupported(s)) {
+                WebSettingsCompat.setForceDark(s, dark
+                        ? WebSettingsCompat.FORCE_DARK_ON : WebSettingsCompat.FORCE_DARK_OFF);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "setForceDark failed: " + t);
+        }
+        try {
+            if (WebSettingsCompat.isAlgorithmicDarkeningSupported(s)) {
+                WebSettingsCompat.setAlgorithmicDarkeningAllowed(s, dark);
+            }
+        } catch (Throwable t) {
+            Log.w(TAG, "setAlgorithmicDarkeningAllowed failed: " + t);
+        }
+        Log.i(TAG, "dark mode applied: " + dark);
     }
 
     private boolean isInternalHost(String host) {
@@ -478,6 +505,7 @@ public class MainActivity extends Activity {
         if (root != null) root.setBackgroundColor(pageBgColor());
         if (web != null) {
             web.setBackgroundColor(pageBgColor());
+            applyDarkMode(web.getSettings());
             web.evaluateJavascript(earlyJs(), null);
         }
     }
