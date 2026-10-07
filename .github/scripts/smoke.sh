@@ -14,6 +14,9 @@ $TMO adb shell getprop sys.boot_completed || true
 $TMO adb logcat -c || true
 $TMO adb shell dumpsys webviewupdate | head -8 || true
 
+# 模拟器默认走硬件键盘，强制显示软键盘，才能真正测到键盘顶起输入框的行为
+$TMO adb shell settings put secure show_ime_with_hard_keyboard 1 || true
+
 stamp "install"
 $TMO adb install -r Wenxin.apk || stamp "install failed"
 
