@@ -44,7 +44,10 @@ def ws_url():
     last = None
     for i in range(15):
         try:
-            raw = urllib.request.urlopen("http://127.0.0.1:9222/json", timeout=4).read().decode("utf-8", "replace")
+            try:
+                raw = urllib.request.urlopen("http://127.0.0.1:9222/json", timeout=4).read().decode("utf-8", "replace")
+            except Exception:
+                raw = urllib.request.urlopen("http://127.0.0.1:9222/json/list", timeout=4).read().decode("utf-8", "replace")
             if i == 0:
                 print("RAW /json: " + raw[:800])
             data = json.loads(raw)
