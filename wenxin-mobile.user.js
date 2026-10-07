@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.16.0
+// @version      0.17.0
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏全屏页、桌面版网站模式缩放补偿。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        *://wenxin.baidu.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.16.0';
+  var VERSION = '0.17.0';
   var MOBILE_MAX = 1200;
   var SCALE_TARGET = 360;      // 缩放补偿后的目标逻辑宽度
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
@@ -292,7 +292,31 @@
     '.wx-set-switch input:checked+span:after{transform:translateX(20px)}',
     '.wx-set-primary{width:100%;margin-top:16px;height:46px;border:0;border-radius:14px;background:#3b5bdb;color:#fff;font-size:16px;font-weight:600;cursor:pointer}',
     '.wx-set-primary:active{filter:brightness(.94)}',
-    '.wx-set-row+.wx-set-row{margin-top:10px}'
+    '.wx-set-row+.wx-set-row{margin-top:10px}',
+
+    /* ===== 深色模式兜底（与 APK 壳内保持一致）=====
+       文心网页对深色适配不完整：底部输入框、「工作」选中标签、抽屉里的列表卡片仍是浅色，
+       正文对比也偏低。这里只做最小必要覆盖。 */
+    '@media (prefers-color-scheme: dark){',
+    'body.wx-mobile .history-chat-header-box{background:rgba(255,255,255,.06)!important}',
+    'body.wx-mobile .history-chat-header-box *{color:#c9cdd6!important}',
+    'body.wx-mobile [class*="home-mode-switch-indicator"]{background:rgba(255,255,255,.16)!important}',
+    'body.wx-mobile [class*="home-mode-switch-item"]{color:#c9cdd6!important}',
+    'body.wx-mobile .history-item-text{color:#c9cdd6!important}',
+    'body.wx-mobile #new-input-wrapper::before{background:transparent!important}',
+    'body.wx-mobile textarea#chat-textarea{background:transparent!important;color:#e8eaed!important}',
+    'body.wx-beauty .ci-wrapper:not(:focus-within){background:rgba(32,34,42,.62)!important}',
+    'body.wx-beauty .ci-wrapper-border{box-shadow:inset 0 0 0 1.8px rgba(165,182,255,.85)!important;background:transparent!important}',
+    '[class*="markdown"]{color:#e6e8ec!important}',
+    '}',
+
+    /* ===== 登录弹窗（与 APK 壳内保持一致）=====
+       百度统一登录弹窗是 PC 尺寸（逻辑宽 800px），在手机视口下远超屏幕、右侧与底部被切。
+       只限制宽高并允许滚动，绝不动它的 left/transform（站点用 transform:translateX(-50%) 居中，
+       宽度一改会自动重算）。 */
+    '#passport-login-pop,[id^=TANGRAM__PSP_]{max-width:94vw!important;max-height:88vh!important;box-sizing:border-box!important;overflow:auto!important}',
+    '#passport-login-pop *,[id^=TANGRAM__PSP_] *{max-width:100%!important}',
+    '#passport-login-pop [class*=tang-pass],[id^=TANGRAM__PSP_] [class*=tang-pass]{flex-wrap:wrap!important;min-width:0!important}',
 
   ].join('\n');
 
@@ -746,6 +770,47 @@
     }, { passive: false });
     document.addEventListener('dblclick', function (e) { e.preventDefault(); }, { passive: false });
   }
+
+  /* ===== 浮层尺寸修复（与 APK 壳内逻辑保持一致）=====
+     扫描「超出视口 或 内容被裁剪」的浮层，限制其尺寸并允许滚动。
+     注意缩放补偿模式下的单位：lw/lh 是 CSS 逻辑尺寸（用于写样式），
+     vw/vh 是乘过 zoom 的视觉尺寸（用于与 getBoundingClientRect 比较）。 */
+  (function () {
+    if (window.__WX_DLG_FIX__) return;
+    window.__WX_DLG_FIX__ = 1;
+    function fixDlg() {
+      if (!isMobile()) return;
+      var de = document.documentElement; if (!de) return;
+      var lw = de.clientWidth || window.innerWidth || 360;
+      var lh = de.clientHeight || window.innerHeight || 640;
+      var z = parseFloat(getComputedStyle(de).zoom) || 1;
+      var vw = lw * z, vh = lh * z;
+      var ns = document.querySelectorAll('div,section,form');
+      for (var i = 0; i < ns.length; i++) {
+        var el = ns[i];
+        if (el.getAttribute('data-wxfit') === '1') continue;
+        var cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.05) continue;
+        var pos = cs.position; if (pos !== 'fixed' && pos !== 'absolute') continue;
+        var r = el.getBoundingClientRect();
+        if (Math.abs(r.width - vw) <= vw * 0.06 && Math.abs(r.height - vh) <= vh * 0.06) continue;
+        if (r.width < vw * 0.35) continue;
+        var over = (r.width > vw * 1.02) || (r.height > vh * 1.02) || (r.left < -vw * 0.02) || (r.right > vw * 1.02);
+        var clipped = ((cs.overflowX !== 'visible') || (cs.overflowY !== 'visible'))
+          && (el.scrollHeight > el.clientHeight + 10 || el.scrollWidth > el.clientWidth + 10);
+        if (!over && !clipped) continue;
+        el.setAttribute('data-wxfit', '1');
+        el.style.setProperty('max-width', Math.round(lw * 0.94) + 'px', 'important');
+        el.style.setProperty('max-height', Math.round(lh * 0.88) + 'px', 'important');
+        el.style.setProperty('overflow', 'auto', 'important');
+        el.style.setProperty('box-sizing', 'border-box', 'important');
+      }
+    }
+    window.__WX_FIX_DIALOGS__ = fixDlg;
+    try { fixDlg(); } catch (e) {}
+    var t = setInterval(function () { try { fixDlg(); } catch (e) {} }, 800);
+    setTimeout(function () { clearInterval(t); }, 180000);
+  })();
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot, { once: true });
