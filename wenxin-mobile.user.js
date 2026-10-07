@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.15.0
+// @version      0.16.0
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏全屏页、桌面版网站模式缩放补偿。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        *://wenxin.baidu.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.15.0';
+  var VERSION = '0.16.0';
   var MOBILE_MAX = 1200;
   var SCALE_TARGET = 360;      // 缩放补偿后的目标逻辑宽度
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
@@ -105,7 +105,7 @@
   /* ===== 样式 ===== */
   var CSS = [
     'html,body{width:100%!important;max-width:100%!important;overflow-x:hidden!important;-webkit-text-size-adjust:100%}',
-    'body.wx-mobile{font-size:16px}',
+    'body.wx-mobile{font-size:17px}',
 
     /* 禁双击缩放 */
     'html{touch-action:manipulation!important}',
@@ -151,7 +151,7 @@
     'body.wx-mobile #new-input-wrapper{padding-left:12px!important;padding-right:12px!important;box-sizing:border-box!important}',
     'body.wx-mobile #chat-input-home{width:100%!important}',
     'body.wx-mobile .ci-wrapper-border,body.wx-mobile .ci-wrapper{border-radius:22px!important}',
-    'body.wx-mobile #chat-textarea,body.wx-mobile .ci-textarea{font-size:17px!important;line-height:1.5!important}',
+    'body.wx-mobile #chat-textarea,body.wx-mobile .ci-textarea{font-size:18px!important;line-height:1.5!important}',
     'body.wx-mobile .more-dropdown-trigger{background:transparent!important;box-shadow:none!important}',
     /* 输入框内部固定 min-width:352px + 负 margin，窄屏会右溢出 → 纠正为自适应 */
     'body.wx-mobile #input-root{min-width:0!important;width:100%!important;margin-left:0!important;margin-right:0!important;max-width:100%!important}',
@@ -160,9 +160,9 @@
     'body.wx-mobile .ci-input-mode-button{background:transparent!important}',
 
     /* 消息字号 */
-    'body.wx-mobile #conversation-flow-content{font-size:16px!important;line-height:1.62!important}',
-    'body.wx-mobile [class*="_question-block"]{font-size:16px!important;line-height:1.5!important}',
-    'body.wx-mobile .cosd-markdown,body.wx-mobile .cosd-markdown-content,body.wx-mobile .marklang-paragraph{font-size:16px!important;line-height:1.62!important}',
+    'body.wx-mobile #conversation-flow-content{font-size:17px!important;line-height:1.62!important}',
+    'body.wx-mobile [class*="_question-block"]{font-size:17px!important;line-height:1.5!important}',
+    'body.wx-mobile .cosd-markdown,body.wx-mobile .cosd-markdown-content,body.wx-mobile .marklang-paragraph{font-size:17px!important;line-height:1.62!important}',
     'body.wx-mobile .cs-question-bubble.cs-bubble{max-width:86%!important}',
     'body.wx-mobile .cs-answer-hover-menu-container,body.wx-mobile .cs-hover-menu{flex-wrap:wrap!important;gap:4px 8px!important}',
     'body.wx-mobile [class*="_home-footer-tip"]{font-size:12px!important}',
@@ -197,7 +197,7 @@
     'body.wx-mobile [class*="_home-recommend-words-item"]{min-height:44px!important;font-size:15px!important}',
 
     /* 侧栏条目 */
-    'body.wx-mobile .aside-main-tab{min-height:44px!important;font-size:15px!important}',
+    'body.wx-mobile .aside-main-tab{min-height:44px!important;font-size:16px!important}',
     'body.wx-mobile .chat-history-time-item,body.wx-mobile .chat-aside-new-item{min-height:42px!important}',
     'body.wx-mobile .chat-aside-container .chat-aside{padding-bottom:env(safe-area-inset-bottom,0px)!important}',
 
@@ -205,7 +205,10 @@
 
     /* ================= 美化（body.wx-beauty / body.wx-bg） ================= */
     /* 背景层：固定满屏 + 四周外扩，避免模糊时露边 */
-    '#wx-bg{position:fixed;left:-10px;top:-10px;width:calc(100% + 20px);height:calc(100% + 20px);z-index:-1;pointer-events:none;background-color:#17181c;background-position:center;background-repeat:no-repeat;background-size:cover;will-change:filter}',
+    '#wx-bg{position:fixed;left:-10px;top:-10px;width:calc(100% + 20px);height:calc(100% + 20px);z-index:-1;pointer-events:none;background:linear-gradient(160deg,#e7edff,#e4e2fb 48%,#e9f1ff);overflow:hidden;will-change:filter}',
+    '#wx-bg .wx-bg-layer{position:absolute;left:0;top:0;right:0;bottom:0;background-position:center;background-repeat:no-repeat;background-size:cover;opacity:0;transition:opacity .6s ease}',
+    '#wx-bg .wx-bg-layer.on{opacity:1}',
+    '@media (prefers-color-scheme: dark){#wx-bg{background:linear-gradient(160deg,#1c2130,#161327 55%,#10141d)}}',
     /* 有背景图时：主容器透明，透出背景 */
     'body.wx-bg,body.wx-bg #app,body.wx-bg #cs-container-scroll,body.wx-bg [class*="_chat-container-body"],body.wx-bg [class*="_chat-container-wrapper"],body.wx-bg #chat-container-main,body.wx-bg [class*="_chat-container-main"],body.wx-bg [class*="_chat-container-pc"],body.wx-bg [class*="_chat-container-main-wrapper"],body.wx-bg [class*="_new-home"],body.wx-bg [class*="_chat-body-container"],body.wx-bg #conversation-flow-container,body.wx-bg #conversation-flow-content,body.wx-bg .chat-qa-container,body.wx-bg [class*="_content-area"],body.wx-bg .aside-scroll-container,body.wx-bg #new-input-wrapper,body.wx-bg .answer-container,body.wx-bg .cs-rich-input,body.wx-bg [class*="ai-entry"],body.wx-bg [class*="_answer-block"],body.wx-bg [class*="_chat-container-pc_"]{background:transparent!important;background-image:none!important}',
     /* 首页站点用 #new-input-wrapper::before 铺了一层纯白底（向上延伸满屏）→ 让它透明 */
@@ -246,7 +249,7 @@
     '@media (prefers-color-scheme: dark){body.wx-beauty .cs-question-bubble.cs-bubble{background:rgba(255,255,255,.16)!important;border-color:rgba(255,255,255,.22)!important;color:#f2f3f5!important}}',
 
     /* 设置按钮（注入到输入框左工具栏） */
-    '#wx-settings-btn{width:34px;height:34px;margin-left:4px;border:0;padding:0;background:transparent;display:flex;align-items:center;justify-content:center;flex:0 0 auto;cursor:pointer;border-radius:10px;-webkit-tap-highlight-color:transparent;color:#6b7280}',
+    '#wx-settings-btn{width:34px;height:34px;margin:0 6px 0 0;border:0;padding:0;background:transparent;display:flex;align-items:center;justify-content:center;flex:0 0 auto;cursor:pointer;border-radius:10px;-webkit-tap-highlight-color:transparent;color:#6b7280}',
     '#wx-settings-btn:active{background:rgba(127,127,127,.20)}',
     '#wx-settings-btn svg{width:20px;height:20px;display:block}',
     '@media (prefers-color-scheme: dark){#wx-settings-btn{color:#c9cdd6}}',
@@ -316,36 +319,86 @@
   }
 
   /* ================= 美化：背景 + 设置面板 ================= */
-  var BEAUTY_KEY = 'wx-beauty-v1';
-  var BEAUTY = { img: '', blur: 0, bright: 100, on: true };
+  var BEAUTY_KEY = 'wx-beauty-v2';
+  var DEFAULT_BG = 'https://piv.cc.cd/file/BQACAgUAAyEGAASLVN5eAAJycmrFsEF_gBAEksOkBJck6n9y6IK2AALKIAAC1YYwVs2Pus_QNfIXPQQ.jpg';
+  var BEAUTY = { img: DEFAULT_BG, blur: 6, bright: 100, on: true };
+  function saveBeauty() {
+    try { localStorage.setItem(BEAUTY_KEY, JSON.stringify(BEAUTY)); }
+    catch (e) { try { alert('背景保存失败：图片过大，请改用图片链接'); } catch (e2) {} }
+  }
   function loadBeauty() {
+    var raw = null;
+    try { raw = localStorage.getItem(BEAUTY_KEY); } catch (e) {}
+    if (!raw) { saveBeauty(); return; }   /* 首次运行：写入默认背景 */
     try {
-      var s = JSON.parse(localStorage.getItem(BEAUTY_KEY) || '{}');
+      var s = JSON.parse(raw);
       if (typeof s.img === 'string') BEAUTY.img = s.img;
       if (typeof s.blur === 'number') BEAUTY.blur = s.blur;
       if (typeof s.bright === 'number') BEAUTY.bright = s.bright;
       if (typeof s.on === 'boolean') BEAUTY.on = s.on;
     } catch (e) {}
   }
-  function saveBeauty() {
-    try { localStorage.setItem(BEAUTY_KEY, JSON.stringify(BEAUTY)); }
-    catch (e) { try { alert('背景保存失败：图片过大，请改用图片链接'); } catch (e2) {} }
-  }
   loadBeauty();
+
+  /* 背景用上下两层做「加载完再淡入 / 切换时交叉淡变」，避免图片一点点铺开 */
+  var bgLayers = [], bgActive = -1, bgUrl = '';
+  function ensureBgDom() {
+    var bg = document.getElementById('wx-bg');
+    if (!bg) {
+      bg = document.createElement('div'); bg.id = 'wx-bg';
+      var l1 = document.createElement('div'); l1.className = 'wx-bg-layer';
+      var l2 = document.createElement('div'); l2.className = 'wx-bg-layer';
+      bg.appendChild(l1); bg.appendChild(l2);
+      (document.body || document.documentElement).appendChild(bg);
+      bgLayers = [l1, l2];
+    } else if (bgLayers.length !== 2 || !document.body.contains(bgLayers[0])) {
+      bgLayers = [bg.children[0], bg.children[1]];
+    }
+    return bg;
+  }
+  function bgUrlCss(u) { return 'url("' + u.replace(/"/g, '%22') + '")'; }
+  function setBgImage(url) {
+    ensureBgDom();
+    if (!url) {
+      if (bgLayers[0]) bgLayers[0].classList.remove('on');
+      if (bgLayers[1]) bgLayers[1].classList.remove('on');
+      bgActive = -1; bgUrl = '';
+      return;
+    }
+    if (url === bgUrl) return;
+    var done = false;
+    var applyIt = function () {
+      if (done) return; done = true;
+      var next = (bgActive === 0) ? 1 : 0;
+      var layer = bgLayers[next]; if (!layer) return;
+      layer.style.backgroundImage = bgUrlCss(url);
+      void layer.offsetWidth;            /* 先让新图就位再加 on，触发过渡 */
+      layer.classList.add('on');
+      if (bgActive >= 0 && bgLayers[bgActive]) bgLayers[bgActive].classList.remove('on');
+      bgActive = next; bgUrl = url;
+    };
+    var probe = new Image();
+    probe.onload = applyIt;
+    probe.onerror = function () { done = true; };   /* 加载失败：保留当前背景，不清空 */
+    probe.src = url;
+    setTimeout(function () { if (!done) applyIt(); }, 4000);  /* 兜底 */
+  }
 
   var beautySig = '';
   function applyBeauty() {
     if (!document.body) return;
     var sig = (BEAUTY.on ? 1 : 0) + '|' + BEAUTY.blur + '|' + BEAUTY.bright + '|' + BEAUTY.img.length + '|' + BEAUTY.img.slice(-24);
-    if (sig === beautySig && document.getElementById('wx-bg')) return;
+    var bg = document.getElementById('wx-bg');
+    if (sig === beautySig && bg) return;
     beautySig = sig;
     document.body.classList.toggle('wx-beauty', !!BEAUTY.on);
-    document.body.classList.toggle('wx-bg', !!BEAUTY.on && !!BEAUTY.img);
-    var bg = document.getElementById('wx-bg');
-    if (!bg) { bg = document.createElement('div'); bg.id = 'wx-bg'; document.body.appendChild(bg); }
-    var u = BEAUTY.img ? 'url("' + BEAUTY.img.replace(/"/g, '%22') + '")' : 'none';
-    bg.style.backgroundImage = u;
+    document.body.classList.toggle('wx-bg', !!BEAUTY.on);   /* 无图时也铺渐变底，消除浅色模式白块 */
+    bg = ensureBgDom();
+    if (!BEAUTY.on) { bg.style.display = 'none'; }
+    else { bg.style.display = 'block'; }
     bg.style.filter = 'blur(' + (BEAUTY.blur || 0) + 'px) brightness(' + ((BEAUTY.bright || 100) / 100) + ')';
+    setBgImage(BEAUTY.on ? BEAUTY.img : '');
+    var u = BEAUTY.img ? bgUrlCss(BEAUTY.img) : 'none';
     var pv = document.getElementById('wx-set-preview'); if (pv) pv.style.backgroundImage = u;
     var e1 = document.getElementById('wx-set-blur'); if (e1) e1.value = BEAUTY.blur;
     var e2 = document.getElementById('wx-set-bright'); if (e2) e2.value = BEAUTY.bright;
@@ -358,7 +411,9 @@
   function ensureSettingsButton() {
     if (!document.body || !isMobile()) return;
     if (document.getElementById('wx-settings-btn')) return;
-    var wrap = document.querySelector('.ci-left-tools-wrapper') || document.querySelector('.ci-left-tool') || document.querySelector('.ci-tool');
+    /* 放进右工具栏首位：该容器 justify-content:flex-end，左侧本就留有空隙，
+       能落在「四宫格」与「麦克风」之间，不与绝对定位的四宫格图标重叠 */
+    var wrap = document.querySelector('.right-tools-wrapper') || document.querySelector('.ci-tool');
     if (!wrap) return;
     var b = document.createElement('button');
     b.id = 'wx-settings-btn';
@@ -366,7 +421,7 @@
     b.setAttribute('aria-label', '设置');
     b.innerHTML = GEAR_SVG;
     b.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); openSettings(); });
-    wrap.appendChild(b);
+    wrap.insertBefore(b, wrap.firstChild);
   }
 
   var PANEL_INNER = [
