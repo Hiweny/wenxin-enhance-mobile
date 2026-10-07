@@ -60,6 +60,13 @@ public class MainActivity extends Activity {
     private static final int PERM_CODE = 1002;
     private static final String TAG = "WenxinWeb";
 
+    /** 模拟器（软件 GPU）上要降低渲染负担，否则 WebView 容易把整机拖崩 */
+    private static boolean isEmulator() {
+        String fp = Build.FINGERPRINT == null ? "" : Build.FINGERPRINT;
+        String hw = Build.HARDWARE == null ? "" : Build.HARDWARE;
+        return fp.contains("generic") || fp.contains("emulator") || hw.contains("goldfish") || hw.contains("ranchu");
+    }
+
     // 桌面端 UA（与手机浏览器「请求桌面版网站」一致）
     private static final String DESKTOP_UA =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -138,7 +145,7 @@ public class MainActivity extends Activity {
         setupKeyboard();
 
         WebView.setWebContentsDebuggingEnabled(true);
-        web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        if (!isEmulator()) web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
         web.setVerticalScrollBarEnabled(false);
         web.setHorizontalScrollBarEnabled(false);
@@ -160,7 +167,7 @@ public class MainActivity extends Activity {
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(true);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        s.setOffscreenPreRaster(true);
+        s.setOffscreenPreRaster(!isEmulator());
         s.setTextZoom(100);
         s.setUserAgentString(DESKTOP_UA);
         s.setMinimumFontSize(0);
@@ -305,10 +312,8 @@ public class MainActivity extends Activity {
      * 因此模拟器环境下整体跳过，真机才应用。
      */
     private void applyChromiumTuning() {
-        String fp = Build.FINGERPRINT == null ? "" : Build.FINGERPRINT;
-        String hw = Build.HARDWARE == null ? "" : Build.HARDWARE;
-        if (fp.contains("generic") || fp.contains("emulator") || hw.contains("goldfish") || hw.contains("ranchu")) {
-            Log.i(TAG, "skip chromium tuning on emulator (fp=" + fp + ", hw=" + hw + ")");
+        if (isEmulator()) {
+            Log.i(TAG, "skip chromium tuning on emulator");
             return;
         }
         String[] switches = {
