@@ -58,7 +58,7 @@ jobs:
           name: Wenxin-apk
           path: Wenxin.apk
 
-      - name: Publish to release (tag: apk)
+      - name: Publish APK to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk
