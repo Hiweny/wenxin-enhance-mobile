@@ -316,19 +316,15 @@ public class MainActivity extends Activity {
     private void applyDarkMode(WebSettings s) {
         boolean dark = isDark();
         try {
-            if (WebSettingsCompat.isForceDarkSupported(s)) {
-                WebSettingsCompat.setForceDark(s, dark
-                        ? WebSettingsCompat.FORCE_DARK_ON : WebSettingsCompat.FORCE_DARK_OFF);
-            }
+            WebSettingsCompat.setForceDark(s, dark
+                    ? WebSettingsCompat.FORCE_DARK_ON : WebSettingsCompat.FORCE_DARK_OFF);
         } catch (Throwable t) {
             Log.w(TAG, "setForceDark failed: " + t);
         }
         try {
-            if (WebSettingsCompat.isAlgorithmicDarkeningSupported(s)) {
-                WebSettingsCompat.setAlgorithmicDarkeningAllowed(s, dark);
-            }
+            WebSettingsCompat.setAlgorithmicDarkeningAllowed(s, dark);
         } catch (Throwable t) {
-            Log.w(TAG, "setAlgorithmicDarkeningAllowed failed: " + t);
+            Log.w(TAG, "algorithmic darkening failed: " + t);
         }
         Log.i(TAG, "dark mode applied: " + dark);
     }
