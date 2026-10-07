@@ -88,3 +88,20 @@ CI 的 *Verify injected bootstrap JS* 步骤每次都跑（本地就是这么抓
 - 底部导航栏区域的系统手势条（白条）由系统绘制，App 只能做到「透明 + 内容延伸」
 - 模拟器实测无登录态，只能覆盖首页与设置面板；对话页需真机确认
 - AI 生成的图片若要「长按保存」，blob: 链接在 WebView 里不支持直接下载（未实现原生下载桥）
+
+## 9. 深色模式与弹窗适配（APK 侧，不改油猴脚本）
+
+文心网页自身对深色适配不完整（底部输入框、「工作」选中标签、抽屉里的列表卡片仍是浅色，正文对比也偏低）。
+APK 侧做了三层处理：
+
+1. **WebView 强制深色**：`WebSettingsCompat.setForceDark(FORCE_DARK_ON/OFF)` +
+   `setAlgorithmicDarkeningAllowed(isDark())`，等价于桌面浏览器里的「强制为此站点启用深色」——
+   统一把未适配的浅色区块算法化反色，并校正正文对比。
+2. **深色兜底样式**（`@media (prefers-color-scheme: dark)`）：
+   `.history-chat-header-box`、`[class*="home-mode-switch-indicator"]`、`.history-item-text`、
+   `#new-input-wrapper::before`、`textarea#chat-textarea`、`[class*="markdown"]` 等做最小必要覆盖。
+   本地实测：深色下「浅色大块」由 2 个 → 0 个。
+3. **弹窗尺寸修复（行为式，不依赖类名）**：每 800ms 扫描「fixed/absolute 浮层且尺寸接近或超过视口」的容器，
+   给它 `max-width:94vw / max-height:88vh / overflow:auto / box-sizing:border-box`。
+   登录弹窗这类 PC 横向分栏浮层在窄屏下会超出并被截断，这条规则让它回到视口内、内容可滚动。
+   注意**不要**改它的 `top/transform`——保留居中定位，只限尺寸（否则会因 `translateY(-50%)` 顶到屏幕外）。
