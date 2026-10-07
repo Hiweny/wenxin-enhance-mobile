@@ -41,15 +41,21 @@ EXPRS = {
 
 
 def ws_url():
-    for _ in range(15):
+    last = None
+    for i in range(15):
         try:
-            data = json.load(urllib.request.urlopen("http://127.0.0.1:9222/json", timeout=4))
+            raw = urllib.request.urlopen("http://127.0.0.1:9222/json", timeout=4).read().decode("utf-8", "replace")
+            if i == 0:
+                print("RAW /json: " + raw[:800])
+            data = json.loads(raw)
             for t in data:
                 if t.get("type") == "page" and t.get("webSocketDebuggerUrl"):
                     return t["webSocketDebuggerUrl"]
-        except Exception:
-            pass
+            last = data
+        except Exception as e:
+            last = repr(e)
         time.sleep(1)
+    print("NO TARGET, last=" + repr(last)[:400])
     return None
 
 
