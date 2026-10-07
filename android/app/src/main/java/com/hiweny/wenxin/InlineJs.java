@@ -75,7 +75,7 @@ final class InlineJs {
             //    不依赖具体类名——扫描「定位浮层且尺寸接近/超过视口」的容器并约束尺寸+允许滚动。
             + "try{if(!window.__WX_DLG_FIX__){window.__WX_DLG_FIX__=1;"
             + "var fixDlg=function(){"
-            + "var de=document.documentElement;"
+            + "var de=document.documentElement;if(!de)return;"
             + "var vw=de.clientWidth||window.innerWidth||360;"
             + "var vh=de.clientHeight||window.innerHeight||640;"
             + "var ns=document.querySelectorAll('div,section,form');"
@@ -90,15 +90,19 @@ final class InlineJs {
             + "el.style.setProperty('max-height',Math.round(vh*0.88)+'px','important');"
             + "el.style.setProperty('overflow','auto','important');"
             + "el.style.setProperty('box-sizing','border-box','important');"
-            + "el.style.setProperty('top','max(4px,calc(50% - '+Math.round(vh*0.44)+'px))','important');"
             + "}"
             + "};"
-            + "fixDlg();var dt=setInterval(fixDlg,800);setTimeout(function(){clearInterval(dt);},180000);"
             + "window.__WX_FIX_DIALOGS__=fixDlg;"
+            + "try{fixDlg();}catch(e){}"
+            + "var dt=setInterval(function(){try{fixDlg();}catch(e){}},800);"
+            + "setTimeout(function(){clearInterval(dt);},180000);"
             + "}}catch(e){}"
 
             // ⑤ 深色跟随系统时，允许页面自行使用暗色（WebView 的 prefers-color-scheme 已随 app 主题）
-            + "try{document.documentElement.setAttribute('data-wx-shell','apk');}catch(e){}";
+            + "try{var setShell=function(){if(!document.documentElement)return false;"
+            + "document.documentElement.setAttribute('data-wx-shell','apk');return true;};"
+            + "if(!setShell()){var sht=setInterval(function(){if(setShell())clearInterval(sht);},20);"
+            + "setTimeout(function(){clearInterval(sht);},4000);}}catch(e){}";
     }
 
     static String early(boolean dark, String bg) {
