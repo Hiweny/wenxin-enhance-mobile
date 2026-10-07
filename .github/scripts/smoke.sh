@@ -35,9 +35,12 @@ if [ -n "$SOCK" ]; then
 fi
 
 stamp "phase1 tap input -> IME"
-if [ -f /tmp/tap.txt ]; then
-  read TX TY < /tmp/tap.txt
-  stamp "tap $TX $TY"
+SIZE=$($TMO adb shell wm size | tr -d '\r' | grep -oE '[0-9]+x[0-9]+' | head -1)
+SW=${SIZE%x*}; SH=${SIZE#*x}
+if [ -z "$SW" ]; then SW=1080; SH=1920; fi
+TX=$((SW / 2)); TY=$((SH - 60))
+if [ -n "$TX" ]; then
+  stamp "tap $TX $TY (fixed bottom-center)"
   $TMO adb shell input tap $TX $TY || true
   sleep 5
   $TMO adb exec-out screencap -p > shots/p1-ime.png || true
