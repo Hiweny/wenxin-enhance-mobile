@@ -45,7 +45,13 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          ok=0
+          for i in 1 2 3; do
+            if ./gradlew assembleRelease --no-daemon --stacktrace; then ok=1; break; fi
+            echo "=== gradle attempt $i failed, retrying ==="
+            sleep 20
+          done
+          [ "$ok" = "1" ]
 
       - name: Collect APK
         run: |
