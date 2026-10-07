@@ -119,6 +119,8 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Log.i(TAG, "onCreate");
+        // 必须在任何 WebView 实例创建之前启用，否则 devtools 不暴露 target
+        WebView.setWebContentsDebuggingEnabled(true);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         // edge-to-edge：内容铺到系统栏之下；键盘高度由我们按 insets 补 padding
@@ -144,7 +146,6 @@ public class MainActivity extends Activity {
 
         setupKeyboard();
 
-        WebView.setWebContentsDebuggingEnabled(true);
         if (!isEmulator()) web.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         web.setOverScrollMode(View.OVER_SCROLL_NEVER);
         web.setVerticalScrollBarEnabled(false);
