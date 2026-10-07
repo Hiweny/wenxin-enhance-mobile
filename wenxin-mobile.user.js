@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         文心助手 · 手机版适配（PC网页改造）
 // @namespace    https://github.com/Hiweny/wenxin-enhance-mobile
-// @version      0.17.0
+// @version      0.17.1
 // @description  将百度文心助手电脑版网页 (wenxin.baidu.com / chat.baidu.com) 全量改造为移动端布局：侧栏抽屉、底部输入框、消息重排、默认工作模式、任务侧栏全屏页、桌面版网站模式缩放补偿。适配手机使用电脑版 UA 的场景。
 // @author       Hiweny
 // @match        *://wenxin.baidu.com/*
@@ -16,7 +16,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.17.0';
+  var VERSION = '0.17.1';
   var MOBILE_MAX = 1200;
   var SCALE_TARGET = 360;      // 缩放补偿后的目标逻辑宽度
   var FORCE_OFF = /[?&#]wxmobile=0/.test(location.href);
@@ -781,10 +781,13 @@
     function fixDlg() {
       if (!isMobile()) return;
       var de = document.documentElement; if (!de) return;
-      var lw = de.clientWidth || window.innerWidth || 360;
-      var lh = de.clientHeight || window.innerHeight || 640;
-      var z = parseFloat(getComputedStyle(de).zoom) || 1;
-      var vw = lw * z, vh = lh * z;
+      // 单位必须分清：realW()/realH() 是「视口真实尺寸」，与 getBoundingClientRect 同一坐标系；
+      // 除以 zoom 才得到元素逻辑坐标系里的可用尺寸（写样式用这个）。
+      // 不能用 documentElement.clientWidth —— 它在浏览器与 WebView 里的含义不一致，
+      // 会把铺满屏幕的背景层/侧边栏误判成「超宽浮层」压小，造成整体向左上偏移。
+      var z = parseFloat(de.style.zoom) || 1;
+      var vw = realW(), vh = realH();
+      var lw = vw / z, lh = vh / z;
       var ns = document.querySelectorAll('div,section,form');
       for (var i = 0; i < ns.length; i++) {
         var el = ns[i];
@@ -793,12 +796,11 @@
         if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) < 0.05) continue;
         var pos = cs.position; if (pos !== 'fixed' && pos !== 'absolute') continue;
         var r = el.getBoundingClientRect();
+        // 铺满视口的容器（背景层、遮罩等）不是浮层，跳过
         if (Math.abs(r.width - vw) <= vw * 0.06 && Math.abs(r.height - vh) <= vh * 0.06) continue;
         if (r.width < vw * 0.35) continue;
-        var over = (r.width > vw * 1.02) || (r.height > vh * 1.02) || (r.left < -vw * 0.02) || (r.right > vw * 1.02);
-        var clipped = ((cs.overflowX !== 'visible') || (cs.overflowY !== 'visible'))
-          && (el.scrollHeight > el.clientHeight + 10 || el.scrollWidth > el.clientWidth + 10);
-        if (!over && !clipped) continue;
+        // 只在「尺寸真的超出视口」时处理；不看 left/right（侧边栏收起时位置为负，会被误伤）
+        if (!(r.width > vw * 1.02 || r.height > vh * 1.02)) continue;
         el.setAttribute('data-wxfit', '1');
         el.style.setProperty('max-width', Math.round(lw * 0.94) + 'px', 'important');
         el.style.setProperty('max-height', Math.round(lh * 0.88) + 'px', 'important');
