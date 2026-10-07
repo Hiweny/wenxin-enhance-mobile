@@ -111,6 +111,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.i(TAG, "onCreate");
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         // edge-to-edge：内容铺到系统栏之下；键盘高度由我们按 insets 补 padding
@@ -299,8 +300,17 @@ public class MainActivity extends Activity {
      * Chromium 引擎调优：必须在第一个 WebView 实例化之前调用。
      * 反射访问 WebView 内置的 org.chromium.base.CommandLine（不在隐藏 API 灰名单内），
      * 打开 GPU 光栅化/零拷贝等开关；任何机型不支持都静默跳过。
+     *
+     * 注意：模拟器（goldfish/ranchu + 软件 GPU）上加这些 GPU 开关会让渲染进程直接崩掉，
+     * 因此模拟器环境下整体跳过，真机才应用。
      */
     private void applyChromiumTuning() {
+        String fp = Build.FINGERPRINT == null ? "" : Build.FINGERPRINT;
+        String hw = Build.HARDWARE == null ? "" : Build.HARDWARE;
+        if (fp.contains("generic") || fp.contains("emulator") || hw.contains("goldfish") || hw.contains("ranchu")) {
+            Log.i(TAG, "skip chromium tuning on emulator (fp=" + fp + ", hw=" + hw + ")");
+            return;
+        }
         String[] switches = {
                 "--ignore-gpu-blocklist",
                 "--enable-gpu-rasterization",
@@ -494,6 +504,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        Log.i(TAG, "onDestroy");
         if (web != null) {
             if (web.getParent() instanceof ViewGroup) ((ViewGroup) web.getParent()).removeView(web);
             web.destroy();
