@@ -41,9 +41,9 @@ EXPRS = {
 
 
 def ws_url():
-    for _ in range(40):
+    for _ in range(15):
         try:
-            data = json.load(urllib.request.urlopen("http://127.0.0.1:9222/json", timeout=5))
+            data = json.load(urllib.request.urlopen("http://127.0.0.1:9222/json", timeout=4))
             for t in data:
                 if t.get("type") == "page" and t.get("webSocketDebuggerUrl"):
                     return t["webSocketDebuggerUrl"]
