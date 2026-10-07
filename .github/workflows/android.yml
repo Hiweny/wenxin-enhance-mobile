@@ -109,7 +109,7 @@ jobs:
           profile: pixel_2
           disable-animations: true
           emulator-boot-timeout: 600
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none -memory 3072 -partition-size 2048
           script: timeout 900 bash .github/scripts/smoke.sh || true
 
       - uses: actions/upload-artifact@v4
