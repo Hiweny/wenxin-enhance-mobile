@@ -64,6 +64,7 @@
   }
 
   function isTouchDevice() {
+    if (window.__WX_FORCE_MOBILE__) return true;
     return (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0 || /Android|iPhone|iPad|iPod|Mobile|HarmonyOS/i.test(navigator.userAgent);
   }
   function isMobile() {
@@ -91,7 +92,14 @@
   }
 
   /* ===== viewport meta ===== */
-  var VP_CONTENT = 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover';
+  /* 视口宽度：手机浏览器用 device-width；APK 壳（配电脑端 UA）沿用「请求桌面版网站」的宽视口，
+     由 applyDesktopScale 缩放补偿回手机宽度，保证与在手机浏览器里装脚本的效果一致。*/
+  function vpContent() {
+    if (window.__WX_VIEWPORT_WIDTH__) {
+      return 'width=' + window.__WX_VIEWPORT_WIDTH__ + ', user-scalable=no, viewport-fit=cover';
+    }
+    return 'width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover';
+  }
   function fixViewport() {
     var m = document.querySelector('meta[name="viewport"]');
     if (!m) {
@@ -99,7 +107,8 @@
       m.setAttribute('name', 'viewport');
       (document.head || document.documentElement).appendChild(m);
     }
-    if (m.getAttribute('content') !== VP_CONTENT) m.setAttribute('content', VP_CONTENT);
+    var c = vpContent();
+    if (m.getAttribute('content') !== c) m.setAttribute('content', c);
   }
 
   /* ===== 样式 ===== */
