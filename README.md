@@ -38,6 +38,21 @@
    ```
 3. 用**电脑版 UA** 打开 `https://wenxin.baidu.com/` 即可看到手机版界面。
 
+## Android APK（可选）
+
+不想折腾油猴？直接用打包好的 APK —— 内置 WebView 壳 + 同一份脚本：
+
+```
+https://github.com/Hiweny/wenxin-enhance-mobile/releases/latest/download/Wenxin.apk
+```
+
+- **同源单一脚本**：APK 里的注入脚本就是仓库根目录的 `wenxin-mobile.user.js`（构建时同步进 assets），改脚本 APK 自动跟随
+- **电脑端 UA + 手机端显示**：与手机浏览器「请求桌面版网站 + 装脚本」等价（视口 980 → 脚本缩放补偿回手机宽度）
+- **全屏沉浸**：状态栏/导航栏透明，内容延伸到刘海与底部导航区，无黑边、无白条
+- **主题跟随系统**：系统深色即深色（`values-night` 主题 → WebView `prefers-color-scheme` 自动跟随）
+- **键盘友好**：三通道键盘方案（动画期位移 / 动画后压缩布局高度 / 全局布局兜底），底部悬浮输入框不闪烁、不被遮挡；输入聚焦期间自动暂停磨砂重采样改用近不透明底色，杜绝输入时卡顿闪动
+- **可用能力**：登录（Cookie 持久化 + 跨站登录）、设置里本地图片上传换背景、语音/相机权限按需申请、返回键（网页可后退则后退，否则退到后台）
+
 ## 排障 / 诊断
 
 - **加 `#wxdebug`**：在地址栏把 URL 改成 `https://wenxin.baidu.com/#wxdebug`，页面左下角会出现绿色小徽标，显示：
