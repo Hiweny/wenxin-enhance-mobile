@@ -1,0 +1,50 @@
+plugins {
+    id 'com.android.application'
+}
+
+def runNumber = System.getenv("GITHUB_RUN_NUMBER")
+def vCode = runNumber ? runNumber.toInteger() : 1
+
+android {
+    namespace 'com.hiweny.wenxin'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.hiweny.wenxin"
+        minSdk 24
+        targetSdk 34
+        versionCode vCode
+        versionName "1.0." + vCode
+        resConfigs "zh"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+            // 直接用 debug 签名，产出可安装包（覆盖安装只要签名一致即可）；如需上架再换正式签名
+            signingConfig signingConfigs.debug
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    packaging {
+        resources.excludes += ["META-INF/*"]
+    }
+}
+
+dependencies {
+    // document-start 级 JS 注入 + 现代 WindowInsets（IME/安全区）处理
+    implementation 'androidx.core:core:1.12.0'
+    implementation 'androidx.webkit:webkit:1.9.0'
+}
+
+// 构建前把同源的油猴脚本同步进 assets（单一数据源，脚本改了 APK 自动跟着变）
+tasks.register('syncInject', Copy) {
+    from rootProject.file('../wenxin-mobile.user.js')
+    into file('src/main/assets')
+    rename { 'inject.js' }
+}
+tasks.matching { it.name == 'preBuild' }.configureEach { it.dependsOn('syncInject') }
