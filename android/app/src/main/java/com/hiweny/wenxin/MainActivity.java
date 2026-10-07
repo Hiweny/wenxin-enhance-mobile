@@ -294,7 +294,14 @@ public class MainActivity extends Activity {
         });
 
         Log.i(TAG, "webview ready ua=" + WebSettings.getDefaultUserAgent(this));
-        if (savedInstanceState == null) web.loadUrl(HOME);
+        // 自动化实测用：允许通过 intent extra 覆盖起始页（仅限内联 data: 页面，不引入外部 URL 注入面）
+        String override = getIntent() == null ? null : getIntent().getStringExtra("wxurl");
+        String startUrl = HOME;
+        if (override != null && override.startsWith("data:text/html")) {
+            startUrl = override;
+            Log.i(TAG, "start url overridden by test harness");
+        }
+        if (savedInstanceState == null) web.loadUrl(startUrl);
         else web.restoreState(savedInstanceState);
     }
 
