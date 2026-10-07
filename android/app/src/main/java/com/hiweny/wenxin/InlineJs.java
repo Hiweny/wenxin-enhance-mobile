@@ -71,8 +71,20 @@ final class InlineJs {
             + "';"
             + "var mnt2=function(){var p2=document.head||document.documentElement;if(!p2){setTimeout(mnt2,4);return;}p2.appendChild(dk);};mnt2();}}catch(e){}"
 
-            // ⑥ 弹窗尺寸修复：登录弹窗等 PC 布局浮层在窄屏下会超出视口、底部被截断。
-            //    不依赖具体类名——扫描「定位浮层且尺寸接近/超过视口」的容器并约束尺寸+允许滚动。
+            // ⑥ 登录/浮层尺寸修复（这段逻辑与油猴脚本保持一致）
+            //    文心登录弹窗 #passport-login-pop 是 PC 尺寸（逻辑宽 800px），在手机视口下远超屏幕、
+            //    右侧与底部被切。两层处理：
+            //    ① CSS 精准约束：限制宽高 + 水平居中
+            //    ② 行为式兜底：扫描「超出视口 或 内容被裁剪」的浮层，逐一约束
+            + "try{if(!document.getElementById('__wx_apk_dlg')){var dl=document.createElement('style');"
+            + "dl.id='__wx_apk_dlg';"
+            + "dl.textContent='"
+            + "#passport-login-pop,[id^=TANGRAM__PSP_]{max-width:94vw!important;max-height:88vh!important;box-sizing:border-box!important;overflow:auto!important}"
+            + "#passport-login-pop *,[id^=TANGRAM__PSP_] *{max-width:100%!important}"
+            + "#passport-login-pop [class*=tang-pass],[id^=TANGRAM__PSP_] [class*=tang-pass]{flex-wrap:wrap!important;min-width:0!important}"
+            
+            + "';"
+            + "var md=function(){var mp=document.head||document.documentElement;if(!mp){setTimeout(md,4);return;}mp.appendChild(dl);};md();}}catch(e){}"
             + "try{if(!window.__WX_DLG_FIX__){window.__WX_DLG_FIX__=1;"
             + "var fixDlg=function(){"
             + "var de=document.documentElement;if(!de)return;"
@@ -81,17 +93,25 @@ final class InlineJs {
             + "var z=parseFloat(getComputedStyle(de).zoom)||1;"
             + "var vw=lw*z,vh=lh*z;"
             + "var ns=document.querySelectorAll('div,section,form');"
-            + "for(var i=0;i<ns.length;i++){var el=ns[i];if(el.getAttribute('data-wxfit')==='1')continue;"
-            + "var cs=getComputedStyle(el);if(cs.display==='none'||cs.visibility==='hidden'||parseFloat(cs.opacity)<0.05)continue;"
+            + "for(var i=0;i<ns.length;i++){var el=ns[i];"
+            + "if(el.getAttribute('data-wxfit')==='1')continue;"
+            + "var cs=getComputedStyle(el);"
+            + "if(cs.display==='none'||cs.visibility==='hidden'||parseFloat(cs.opacity)<0.05)continue;"
             + "var pos=cs.position;if(pos!=='fixed'&&pos!=='absolute')continue;"
             + "var r=el.getBoundingClientRect();"
             + "if(Math.abs(r.width-vw)<=vw*0.06&&Math.abs(r.height-vh)<=vh*0.06)continue;"
-            + "if(r.width<=vw*1.02&&r.height<=vh*1.02)continue;"
+            + "if(r.width<vw*0.35)continue;"
+            + "var over=(r.width>vw*1.02)||(r.height>vh*1.02)||(r.left<-vw*0.02)||(r.right>vw*1.02);"
+            + "var clipped=((cs.overflowX!=='visible')||(cs.overflowY!=='visible'))"
+            + "&&(el.scrollHeight>el.clientHeight+10||el.scrollWidth>el.clientWidth+10);"
+            + "if(!over&&!clipped)continue;"
             + "el.setAttribute('data-wxfit','1');"
             + "el.style.setProperty('max-width',Math.round(lw*0.94)+'px','important');"
             + "el.style.setProperty('max-height',Math.round(lh*0.88)+'px','important');"
             + "el.style.setProperty('overflow','auto','important');"
             + "el.style.setProperty('box-sizing','border-box','important');"
+            // 只限尺寸，绝不动 left/transform——站点用 transform:translateX(-50%) 居中，宽度一改会自动重算
+
             + "}"
             + "};"
             + "window.__WX_FIX_DIALOGS__=fixDlg;"
@@ -99,8 +119,6 @@ final class InlineJs {
             + "var dt=setInterval(function(){try{fixDlg();}catch(e){}},800);"
             + "setTimeout(function(){clearInterval(dt);},180000);"
             + "}}catch(e){}"
-
-            // ⑤ 深色跟随系统时，允许页面自行使用暗色（WebView 的 prefers-color-scheme 已随 app 主题）
             + "try{var setShell=function(){if(!document.documentElement)return false;"
             + "document.documentElement.setAttribute('data-wx-shell','apk');return true;};"
             + "if(!setShell()){var sht=setInterval(function(){if(setShell())clearInterval(sht);},20);"
