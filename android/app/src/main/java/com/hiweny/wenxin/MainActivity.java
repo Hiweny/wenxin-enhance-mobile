@@ -11,11 +11,13 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.ConsoleMessage;
 import android.webkit.CookieManager;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
@@ -56,6 +58,7 @@ public class MainActivity extends Activity {
     private static final String HOME = "https://wenxin.baidu.com/";
     private static final int FILE_CHOOSER_CODE = 1001;
     private static final int PERM_CODE = 1002;
+    private static final String TAG = "WenxinWeb";
 
     // 桌面端 UA（与手机浏览器「请求桌面版网站」一致）
     private static final String DESKTOP_UA =
@@ -177,12 +180,35 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
+                Log.i(TAG, "onPageStarted " + url);
                 view.evaluateJavascript(fullBootstrapJs(), null);
             }
 
             @Override
             public void onPageFinished(WebView view, String url) {
+                Log.i(TAG, "onPageFinished " + url);
                 view.evaluateJavascript(fullBootstrapJs(), null);
+                // 把页面真实状态回报到 logcat，便于无人值守的云端实测核对
+                view.evaluateJavascript("(function(){try{return JSON.stringify({apk:!!window.__WX_APK__,"
+                        + "iw:window.innerWidth,ih:window.innerHeight,vvh:(window.visualViewport?Math.round(window.visualViewport.height):-1),"
+                        + "dpr:window.devicePixelRatio,zoom:document.documentElement.style.zoom||'1',"
+                        + "dark:matchMedia('(prefers-color-scheme:dark)').matches,mobile:!!window.__WX_MOBILE__,"
+                        + "cls:document.body?document.body.className:'-',scaled:document.body?document.body.classList.contains('wx-scaled'):false,"
+                        + "bg:document.body?getComputedStyle(document.body).backgroundColor:'-',"
+                        + "gear:!!document.getElementById('wx-settings-btn'),burger:!!document.getElementById('wx-hamburger'),"
+                        + "bgLayer:!!document.getElementById('wx-bg'),ta:document.querySelectorAll('textarea,[contenteditable=true]').length,"
+                        + "title:document.title});}catch(e){return 'ERR:'+e.message}})()",
+                        v -> Log.i(TAG, "STATE " + v));
+            }
+
+            @Override
+            public void onReceivedError(WebView view, WebResourceRequest req, android.webkit.WebResourceError err) {
+                Log.e(TAG, "onReceivedError " + req.getUrl() + " -> " + err.getErrorCode() + " " + err.getDescription());
+            }
+
+            @Override
+            public void onReceivedHttpError(WebView view, WebResourceRequest req, android.webkit.WebResourceResponse res) {
+                Log.e(TAG, "onReceivedHttpError " + req.getUrl() + " -> " + res.getStatusCode());
             }
 
             @Override
@@ -200,6 +226,17 @@ public class MainActivity extends Activity {
         });
 
         web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onProgressChanged(WebView view, int p) {
+                if (p == 100) Log.i(TAG, "progress 100");
+            }
+
+            @Override
+            public boolean onConsoleMessage(ConsoleMessage cm) {
+                Log.i(TAG, "JS " + cm.messageLevel() + " " + cm.message() + " @" + cm.lineNumber());
+                return true;
+            }
+
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> cb, FileChooserParams params) {
                 if (filePathCallback != null) filePathCallback.onReceiveValue(null);
@@ -248,6 +285,7 @@ public class MainActivity extends Activity {
             }
         });
 
+        Log.i(TAG, "webview ready ua=" + WebSettings.getDefaultUserAgent(this));
         if (savedInstanceState == null) web.loadUrl(HOME);
         else web.restoreState(savedInstanceState);
     }
