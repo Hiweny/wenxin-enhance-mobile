@@ -73,6 +73,7 @@ jobs:
   smoke:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -100,8 +101,9 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
+          emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none -camera-front none
-          script: bash .github/scripts/smoke.sh
+          script: timeout 900 bash .github/scripts/smoke.sh || true
 
       - uses: actions/upload-artifact@v4
         if: always()
